@@ -1,0 +1,13 @@
+index = 0
+executable = run_nessai.py
+arguments  = "--datafile=data/PyTotalAnalysis.mat --index=$(index)"
+
+output = condor_logs/data_$(index).out
+error  = condor_logs/data_$(index).err
+log    = condor_logs/data_$(index).log
+
+request_cpus   = 8
+request_memory = 1024
+getEnv = True
+
+queue
