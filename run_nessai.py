@@ -6,6 +6,7 @@ import logging
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+from nessai import config
 from nessai.model import Model
 from nessai.flowsampler import FlowSampler
 from nessai.utils import setup_logger
@@ -22,11 +23,13 @@ logger = logging.getLogger("nessai")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument("--seed", default=1234, type=int)
-    parser.add_argument("--datafile", default=None, type=str)
-    parser.add_argument("--index", default=None, type=int)
-    parser.add_argument("--label", default=None, type=str)
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing results directory.")
+    parser.add_argument("--seed", default=1234, type=int, help="Random seed.")
+    parser.add_argument("--datafile", default=None, type=str, help="Data file to load.")
+    parser.add_argument("--index", default=None, type=int, help="Index of the data in the data file.")
+    parser.add_argument("--label", default=None, type=str, help="Label added to the end of output directory.")
+    parser.add_argument("--n-pool", default=None, type=int, help="Number of cores to use.")
+    parser.add_argument("--log-level", default=None, type=str, help="Logging level")
     return parser.parse_args()
 
 
@@ -172,7 +175,12 @@ def main():
     if args.overwrite and os.path.exists(output):
         shutil.rmtree(output)
 
-    logger = setup_logger(output=output)
+
+    logging_kwargs = {}
+    if args.log_level:
+        logging_kwargs["log_level"] = args.log_level.upper()
+
+    logger = setup_logger(output=output, **logging_kwargs)
 
     if args.datafile is None:
         x_data, y_data, truth = get_simulated_data(rng)
@@ -196,7 +204,7 @@ def main():
         model,
         output=output,
         nlive=1000,
-        n_pool=16,
+        n_pool=args.n_pool,
         resume=not args.overwrite,
         seed=args.seed,
         reset_flow=16,
@@ -242,6 +250,28 @@ def main():
 
     fig.savefig(os.path.join(output, "fit.png"))
 
+    all_params = live_points_to_dict(sampler.posterior_samples)
+    all_params["A2"] = 1 - all_params["A1"]
+    all_params["phi1"] = 1 / (all_params["t1"] * np.pi * frequency)
+    all_params["phi2"] = 1 / (all_params["t2"] * np.pi * frequency)
+
+    header = "\t".join(["parameter", "median", "16", "84", "minus", "plus"])
+    values = []
+    exclude = config.NON_SAMPLING_PARAMETERS
+    for name, post in all_params.items():
+        if name in exclude:
+            continue
+        q50, q16, q84 = \
+            np.quantile(post, q=[0.5, 0.16, 0.84])
+        plus = q84 - q50
+        minus = q50 - q16
+        values.append([name, str(q50), str(q16), str(q84), str(minus), str(plus)])
+    
+    with open(os.path.join(output, "result.txt"), "w") as fp:
+        fp.write(header + "\n")
+        for v in values:
+            fp.write("\t".join(v) + "\n")
+    
 
 if __name__ == "__main__":
     main()
