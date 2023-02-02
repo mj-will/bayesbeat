@@ -4,6 +4,12 @@ Bayesian analysis of ringdowns.
 
 **Warning:** the following instructions have only been tested on Linux and may be updated after testing on other platforms.
 
+## Downloading the code
+
+The recommended way to download the code is by cloning this repository. 
+
+Alternatively, you can download the code as a Zip from [this URL](https://github.com/mj-will/bayesbeat/archive/refs/heads/main.zip).
+
 ## Installation
 
 Before installing `nessai` you'll need to download and install `conda`. See the instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html). If running on computing cluster you will not have to do this step.
