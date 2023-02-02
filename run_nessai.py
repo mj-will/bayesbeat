@@ -3,6 +3,7 @@ import argparse
 import os
 import shutil
 import logging
+from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,18 +24,51 @@ logger = logging.getLogger("nessai")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing results directory.")
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite an existing results directory.",
+    )
     parser.add_argument("--seed", default=1234, type=int, help="Random seed.")
     parser.add_argument("--datafile", default=None, type=str, help="Data file to load.")
-    parser.add_argument("--index", default=None, type=int, help="Index of the data in the data file.")
-    parser.add_argument("--label", default=None, type=str, help="Label added to the end of output directory.")
-    parser.add_argument("--n-pool", default=None, type=int, help="Number of cores to use.")
-    parser.add_argument("--log-level", default=None, type=str, help="Logging level")
+    parser.add_argument(
+        "--index", default=None, type=int, help="Index of the data in the data file."
+    )
+    parser.add_argument(
+        "--outdir",
+        default="outdir",
+        type=str,
+        help="Output directory. Defaults to `outdir`",
+    )
+    parser.add_argument(
+        "--label",
+        default=None,
+        type=str,
+        help="Label added to the end of output directory.",
+    )
+    parser.add_argument(
+        "--n-pool", default=None, type=int, help="Number of cores to use."
+    )
+    parser.add_argument("--log-level", default=None, type=str, help="Logging level.")
+    parser.add_argument(
+        "--max-amp",
+        default=None,
+        type=float,
+        help="Maximum amplitude used to truncated the data.",
+    )
+    parser.add_argument(
+        "--rescale",
+        action="store_true",
+        help="Rescale the data so the maximum amplitude is one.",
+    )
     return parser.parse_args()
 
 
 def sigmodel(A1, A2, t1, t2, p1, dp, dw, x):
-    """Signal model"""
+    """Signal model.
+
+    Double decaying sinusoid.
+    """
     Ap = A1 * np.exp(-x / t1)
     Bp = A2 * np.exp(-x / t2)
     p2 = p1 - dp
@@ -45,24 +79,38 @@ def sigmodel(A1, A2, t1, t2, p1, dp, dw, x):
 
 
 def signal_from_dict(d, x_data):
+    """Get the signal from a dictionary of parameters and some data."""
     return sigmodel(
         d["A1"], d["A2"], d["t1"], d["t2"], d["p1"], d["dp"], d["dw"], x_data
     )
 
 
 class DoubleDecayingModel(Model):
-    def __init__(self, x, y):
+    """Model of a double decaying sinusoid"""
+
+    def __init__(self, x, y, rescale: bool = False):
         # define param names as list
-        self.names = ["A1", "t1", "t2", "p1", "dp", "dw", "sigma"]
-        self.bounds = {
-            "A1": (0.5, 1),
+        self.rescale = rescale
+        if self.rescale:
+            names = ["A1"]
+            bounds = {
+                "A1": (0.5, 1),
+            }
+        else:
+            names = ["A1", "A_ratio"]
+            bounds = {"A1": (5, 1500), "A_ratio": (0, 1)}
+
+        other_names = ["t1", "t2", "p1", "dp", "dw", "sigma"]
+        other_bounds = {
             "t1": (10, 10000),
             "t2": (10, 10000),
             "p1": (0, 2 * np.pi),
             "dp": (0, 2 * np.pi),
             "dw": (0, 1),
-            "sigma": (0, 1),
+            "sigma": (0, 50),
         }
+        self.names = names + other_names
+        self.bounds = bounds | other_bounds
         self.x_data = x
         self.y_data = y
         self.n_samples = len(x)
@@ -78,13 +126,18 @@ class DoubleDecayingModel(Model):
         return log_p
 
     def log_likelihood(self, x):
-
         sig = x["sigma"]
         norm_const = -0.5 * self.n_samples * np.log(2 * np.pi * sig**2)
 
+        A1 = x["A1"]
+        if self.rescale:
+            A2 = 1 - A1
+        else:
+            A2 = x["A_ratio"] * A1
+
         y_signal = sigmodel(
-            x["A1"],
-            1 - x["A1"],
+            A1,
+            A2,
             x["t1"],
             x["t2"],
             x["p1"],
@@ -100,6 +153,22 @@ class DoubleDecayingModel(Model):
 
 
 def get_simulated_data(rng):
+    """Get simulated data.
+
+    Parameters
+    ----------
+    rng : int
+        The random seed
+
+    Returns
+    -------
+    x_data : numpy.ndarray
+        Array of times
+    y_data : numpy.ndarray
+        Array of amplitudes
+    truth : dict
+        Dictionary of true values
+    """
     fs = 2.0
     max_t_obs = 3600.0
 
@@ -135,12 +204,45 @@ def get_simulated_data(rng):
     return x_data, y_data, truth
 
 
-def get_data(path: str, index: int):
+def get_data(
+    filename: str,
+    index: int,
+    max_amp: Optional[float] = None,
+    rescale_amplitude: bool = True,
+) -> Tuple[np.ndarray, np.ndarray, float]:
+    """Get a specific piece of data from a file.
 
+    Parameters
+    ----------
+    filename : str
+        Filename including the complete path
+    index : int
+        Index in the data to analyse. Start at zero.
+    max_amp : Optional[float], optional
+        Truncate the data at a maximum amplitude, by default None and the data
+        is truncated.
+    rescale_amplitude : bool, optional
+        If true, the data is rescaled to the maximum amplitude is one, by
+        default True.
+
+    Returns
+    -------
+    times : numpy.ndarray
+        Array of times
+    amplitudes : numpy.ndarray
+        Array of amplitudes
+    freq : float
+        Frequency of the data
+
+    Raises
+    ------
+    ValueError
+        If an index is not specified.
+    """
     if index is None:
         raise ValueError("Must specify index")
 
-    matdata = hdf5storage.loadmat(path)
+    matdata = hdf5storage.loadmat(filename)
     times = matdata["ring_times"].T
     amplitudes = matdata["ring_amps"].T
     freqs = matdata["freq"]
@@ -152,8 +254,15 @@ def get_data(path: str, index: int):
     times = times[keep]
     amplitudes = amplitudes[keep]
 
-    x, y = times, amplitudes / amplitudes.max()
-    return x, y, freqs[index]
+    if max_amp:
+        logger.info(f"Initial maximum amplitude: {amplitudes.max()}")
+        start = np.flatnonzero(amplitudes > max_amp)[-1]
+        times, amplitudes = times[start:], amplitudes[start:]
+        times = times - times[0]
+
+    if rescale_amplitude:
+        amplitudes = amplitudes / amplitudes.max()
+    return times, amplitudes, freqs[index]
 
 
 def main():
@@ -163,6 +272,7 @@ def main():
     rng = np.random.default_rng(seed=args.seed)
 
     if args.datafile is None:
+        logger.warning("You are not analysing real data!")
         name = f"injection_seed{args.seed}"
     else:
         if args.index is None:
@@ -170,11 +280,10 @@ def main():
         name = f"data_index_{args.index}"
     if args.label is not None:
         name += f"_{args.label}"
-    output = os.path.join("outdir", name)
+    output = os.path.join(args.outdir, name)
 
     if args.overwrite and os.path.exists(output):
         shutil.rmtree(output)
-
 
     logging_kwargs = {}
     if args.log_level:
@@ -186,7 +295,12 @@ def main():
         x_data, y_data, truth = get_simulated_data(rng)
         frequency = 2800
     else:
-        x_data, y_data, frequency = get_data(args.datafile, args.index)
+        x_data, y_data, frequency = get_data(
+            args.datafile,
+            args.index,
+            args.max_amp,
+            rescale_amplitude=args.rescale,
+        )
         logger.info(f"Real data frequency: {frequency}")
         truth = None
 
@@ -197,7 +311,7 @@ def main():
     plt.tight_layout()
     fig.savefig(os.path.join(output, "data.png"))
 
-    model = DoubleDecayingModel(x_data, y_data)
+    model = DoubleDecayingModel(x_data, y_data, rescale=args.rescale)
     model.truth = truth
 
     sampler = FlowSampler(
@@ -228,7 +342,12 @@ def main():
     logger.info(f"Recovered values: {fit_params}")
     logger.info(f"phi_1: {1 / (fit_params['t1'] * np.pi * frequency)}")
     logger.info(f"phi_2: {1 / (fit_params['t2'] * np.pi * frequency)}")
-    fit_params["A2"] = 1 - fit_params["A1"]
+
+    # Reconstruct the missing parameters
+    if "A_ratio" in model.names:
+        fit_params["A2"] = fit_params["A_ratio"] * fit_params["A1"]
+    else:
+        fit_params["A2"] = 1 - fit_params["A1"]
 
     fit = signal_from_dict(fit_params, x_data)
 
@@ -251,7 +370,10 @@ def main():
     fig.savefig(os.path.join(output, "fit.png"))
 
     all_params = live_points_to_dict(sampler.posterior_samples)
-    all_params["A2"] = 1 - all_params["A1"]
+    if "A_ratio" in model.names:
+        all_params["A2"] = all_params["A_ratio"] * all_params["A1"]
+    else:
+        all_params["A2"] = 1 - all_params["A1"]
     all_params["phi1"] = 1 / (all_params["t1"] * np.pi * frequency)
     all_params["phi2"] = 1 / (all_params["t2"] * np.pi * frequency)
 
@@ -261,17 +383,17 @@ def main():
     for name, post in all_params.items():
         if name in exclude:
             continue
-        q50, q16, q84 = \
-            np.quantile(post, q=[0.5, 0.16, 0.84])
+        q50, q16, q84 = np.quantile(post, q=[0.5, 0.16, 0.84])
         plus = q84 - q50
         minus = q50 - q16
         values.append([name, str(q50), str(q16), str(q84), str(minus), str(plus)])
-    
+
+    # Save a summary of the results to "result.txt"
     with open(os.path.join(output, "result.txt"), "w") as fp:
         fp.write(header + "\n")
         for v in values:
             fp.write("\t".join(v) + "\n")
-    
+
 
 if __name__ == "__main__":
     main()
