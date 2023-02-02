@@ -1,6 +1,9 @@
 index = 0
+datafile = data/PyTotalAnalysis.mat
+outdir = outdir/
+
 executable = run_nessai.py
-arguments  = "--datafile=data/PyTotalAnalysis.mat --index=$(index)"
+arguments  = "--datafile=$(datafile) --index=$(index) --outdir=$(outdir) --rescale --n-pool=8"
 
 output = condor_logs/data_$(index).out
 error  = condor_logs/data_$(index).err
