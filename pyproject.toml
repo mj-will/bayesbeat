@@ -27,6 +27,7 @@ dynamic = ["version"]
 bayesbeat_run = "bayesbeat.cli.run:run"
 bayesbeat_build = "bayesbeat.cli.build:build"
 bayesbeat_base_config = "bayesbeat.cli.config:base_config"
+bayesbeat_create_ini = "bayesbeat.cli.config:create_ini"
 
 [tool.setuptools_scm]
 
