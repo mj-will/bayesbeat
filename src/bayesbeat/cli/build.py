@@ -6,7 +6,7 @@ import click
 
 
 @click.command()
-@click.option("--config", help="Config file", required=True)
+@click.option("--config", help="Config file", required=True, type=click.Path(exists=True))
 @click.option("--submit", help="Submit the DAG", is_flag=True)
 def build(config, submit):
     logger = configure_logger(label=None, output=None)

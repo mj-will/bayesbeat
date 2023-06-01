@@ -9,7 +9,7 @@ from ..utils import configure_logger
 
 
 @click.command()
-@click.option("--config", help="Config file", required=True)
+@click.option("--config", help="Config file", required=True, type=click.Path(exists=True))
 @click.option("--index", type=int, help="Index to analyse", required=True)
 @click.option("--log-level", type=str, help="Logging level", default="INFO")
 @click.option(

@@ -11,8 +11,8 @@ def base_config(name):
 
 
 @click.command()
-@click.option("--output", type=str)
-@click.option("--datafile", type=str)
+@click.option("--output", type=click.Path())
+@click.option("--datafile", type=click.Path(exists=True))
 @click.option("--label", type=str)
 @click.option("--filename", type=str)
 def create_ini(filename, output, datafile, label):
