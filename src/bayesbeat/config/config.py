@@ -17,7 +17,11 @@ class BayesBeatConfigParser(configparser.ConfigParser):
         self.read(self.default_config)
 
     def get(self, section, option, **kwargs):
-        return literal_eval(super().get(section, option, **kwargs))
+        val = super().get(section, option, **kwargs)
+        try:
+            return literal_eval(val)
+        except (ValueError, SyntaxError):
+            return val
 
     def write_to_file(self, filename: str) -> None:
         """Write the config to a file"""
