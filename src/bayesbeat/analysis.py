@@ -11,7 +11,7 @@ from nessai.utils import setup_logger
 import numpy as np
 
 from .data import get_data
-from .model import DoubleDecayingModel
+from .model import DoubleDecayingModel, GaussBeamModel
 from .plot import plot_fit
 from .conversion import generate_all_parameters
 from .result import save_summary
@@ -24,6 +24,10 @@ def run_nessai(
     index: int = None,
     output: str = None,
     rescale_amplitude: bool = False,
+    use_bryan_model: bool = True,
+    PD_size: float = None,
+    PD_gap: float = None,
+    reduce_factor: float = None,
     maximum_amplitude: Optional[float] = None,
     resume: bool = True,
     n_pool: Optional[int] = None,
@@ -42,9 +46,14 @@ def run_nessai(
         index,
         rescale_amplitude=rescale_amplitude,
         maximum_amplitude=maximum_amplitude,
+        use_bryan_model=use_bryan_model,
+        reduce_factor=reduce_factor
     )
 
-    model = DoubleDecayingModel(x_data, y_data, rescale=rescale_amplitude)
+    if use_bryan_model:
+        model = GaussBeamModel(x_data, y_data, PD_gap, PD_size, rescale=rescale_amplitude, reduce_factor=reduce_factor)
+    else:
+        model = DoubleDecayingModel(x_data, y_data, rescale=rescale_amplitude)
 
     setup_logger(label=None, output=None, log_level=log_level)
 

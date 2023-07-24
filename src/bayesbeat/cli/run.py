@@ -38,5 +38,9 @@ def run(config, index, log_level, output):
         resume=config.get("Analysis", "resume"),
         log_level=log_level,
         plot=config.get("General", "plot"),
+        use_bryan_model=config.get("Model","use_bryan_model"),
+        PD_size=config.get("Model","PD_size"),
+        PD_gap=config.get("Model","PD_gap"),
+        reduce_factor=config.get("Model","reduce_factor"),
         **kwargs,
     )
