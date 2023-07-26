@@ -34,7 +34,10 @@ def create_ini(filename, output, datafile, label):
     line.
     """
     config = BayesBeatConfigParser()
-    config.set("General", "output", output)
-    config.set("General", "datafile", datafile)
-    config.set("General", "label", label)
+    if output is not None:
+        config.set("General", "output", output)
+    if datafile is not None:
+        config.set("General", "datafile", datafile)
+    if label is not None:
+        config.set("General", "label", label)
     config.write_to_file(filename)
