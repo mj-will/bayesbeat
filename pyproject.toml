@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools-scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bayesbeat"
+authors = [
+    {name = "Michael J. Williams", email = "michaeljw1@googlemail.com"},
+]
+description = "Bayesian inference for two decaying beating signals"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "click",
+    "hdf5storage",
+    "nessai>=0.8",
+    "pycondor",
+    "corner",
+]
+
+dynamic = ["version"]
+
+[project.scripts]
+bayesbeat_run = "bayesbeat.cli.run:run"
+bayesbeat_build = "bayesbeat.cli.build:build"
+bayesbeat_base_config = "bayesbeat.cli.config:base_config"
+bayesbeat_create_ini = "bayesbeat.cli.config:create_ini"
+
+[tool.setuptools_scm]
+
+[tool.black]
+line-length = 79
