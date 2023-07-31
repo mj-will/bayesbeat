@@ -47,11 +47,18 @@ def run_nessai(
         rescale_amplitude=rescale_amplitude,
         maximum_amplitude=maximum_amplitude,
         use_bryan_model=use_bryan_model,
-        reduce_factor=reduce_factor
+        reduce_factor=reduce_factor,
     )
 
     if use_bryan_model:
-        model = GaussBeamModel(x_data, y_data, PD_gap, PD_size, rescale=rescale_amplitude, reduce_factor=reduce_factor)
+        model = GaussBeamModel(
+            x_data,
+            y_data,
+            PD_gap,
+            PD_size,
+            rescale=rescale_amplitude,
+            reduce_factor=reduce_factor,
+        )
     else:
         model = DoubleDecayingModel(x_data, y_data, rescale=rescale_amplitude)
 
