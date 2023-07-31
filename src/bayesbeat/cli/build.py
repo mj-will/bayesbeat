@@ -6,9 +6,10 @@ import click
 
 
 @click.command()
-@click.option("--config", help="Config file", required=True, type=click.Path(exists=True))
+@click.argument("config", type=click.Path(exists=True))
 @click.option("--submit", help="Submit the DAG", is_flag=True)
 def build(config, submit):
+    """Build and optionally submit a config (ini) file."""
     logger = configure_logger(label=None, output=None)
     dag = build_dag(config)
     if submit:

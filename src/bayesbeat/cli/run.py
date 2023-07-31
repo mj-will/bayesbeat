@@ -9,14 +9,14 @@ from ..utils import configure_logger
 
 
 @click.command()
-@click.option("--config", help="Config file", required=True, type=click.Path(exists=True))
-@click.option("--index", type=int, help="Index to analyse", required=True)
-@click.option("--log-level", type=str, help="Logging level", default="INFO")
+@click.argument("config", type=click.Path(exists=True))
+@click.option("--index", type=int, help="Index to analyse.", required=True)
+@click.option("--log-level", type=str, help="Logging level.", default="INFO")
 @click.option(
     "--output", type=str, help="Output directory that overrides the config"
 )
 def run(config, index, log_level, output):
-
+    """Run an analysis from a config file for a given index"""
     logger = configure_logger(log_level=log_level)
 
     config = read_config(config)
