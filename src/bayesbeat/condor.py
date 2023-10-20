@@ -71,7 +71,9 @@ def build_dag(config_file: str) -> Dagman:
             if not isinstance(request_gpus, list):
                 request_gpus = [request_gpus]
             for rg in request_gpus:
-                extra_lines += [f"request_gpus = {rg}",]
+                extra_lines += [
+                    f"request_gpus = {rg}",
+                ]
 
         job = Job(
             name=job_name,

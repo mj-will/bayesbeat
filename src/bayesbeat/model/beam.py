@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class GaussianBeamModel(BaseModel):
     """Model of a double decaying sinusoid including the gaussian beam shape
     and gap between sensors.
-    
+
     """
 
     def __init__(
@@ -67,7 +67,7 @@ class GaussianBeamModel(BaseModel):
 
         if bounds["dw"][0] == bounds["dw"][1]:
             raise RuntimeError("Invalid beat prior")
-        
+
         bounds["dp"] = [0, 2 * np.pi]
 
         other_bounds = {
@@ -133,11 +133,14 @@ class GaussianBeamModel(BaseModel):
             # measurement time recorded at end of processing
             times_full[p] = np.linspace(
                 t1 - measurement_duration,
-                t1, red_samples_per_measurement,
+                t1,
+                red_samples_per_measurement,
                 # endpoint=False,
             )
         times_full = (
-            torch.from_numpy(times_full).to(torch.get_default_dtype()).to(device)
+            torch.from_numpy(times_full)
+            .to(torch.get_default_dtype())
+            .to(device)
         )
         y = torch.from_numpy(y).to(device)
         return times_full, y
@@ -161,28 +164,32 @@ class GaussianBeamModel(BaseModel):
             A2 = x["A_ratio"].item() * A1
         else:
             A2 = x["A2"]
-        
+
         f2 = x["f1"] + x["df"]
         ph2 = np.mod(self.ph1 + x["dp"], 2 * np.pi)
 
         with torch.inference_mode():
             return (
-                signal_model(
-                    self.x_data,
-                    self.PD_gap,
-                    self.PD_size,
-                    A1,
-                    x["f1"],
-                    self.ph1,
-                    x["decay1"],
-                    A2,
-                    f2,
-                    ph2,
-                    x["decay2"],
-                    self.x_offset,#x["x_offset"],
-                    x["beam_radius"],
+                (
+                    signal_model(
+                        self.x_data,
+                        self.PD_gap,
+                        self.PD_size,
+                        A1,
+                        x["f1"],
+                        self.ph1,
+                        x["decay1"],
+                        A2,
+                        f2,
+                        ph2,
+                        x["decay2"],
+                        self.x_offset,  # x["x_offset"],
+                        x["beam_radius"],
+                    )
                 )
-            ).cpu().numpy()
+                .cpu()
+                .numpy()
+            )
 
     def log_likelihood(self, x):
         A1 = x["A1"].item()
@@ -196,25 +203,29 @@ class GaussianBeamModel(BaseModel):
         ph2 = np.mod(self.ph1 + x["dp"], 2 * np.pi)
         with torch.inference_mode():
             logl = (
-                log_likelihood(
-                    self.x_data,
-                    self.y_data,
-                    self.n_samples,
-                    self.PD_gap,
-                    self.PD_size,
-                    A1,
-                    self.f1,
-                    self.ph1,
-                    x["decay1"],
-                    A2,
-                    f2,
-                    ph2,
-                    x["decay2"],
-                    self.x_offset,# x["x_offset"],
-                    x["beam_radius"],
-                    x["sigma"],
+                (
+                    log_likelihood(
+                        self.x_data,
+                        self.y_data,
+                        self.n_samples,
+                        self.PD_gap,
+                        self.PD_size,
+                        A1,
+                        self.f1,
+                        self.ph1,
+                        x["decay1"],
+                        A2,
+                        f2,
+                        ph2,
+                        x["decay2"],
+                        self.x_offset,  # x["x_offset"],
+                        x["beam_radius"],
+                        x["sigma"],
+                    )
                 )
-            ).cpu().numpy()
+                .cpu()
+                .numpy()
+            )
         return logl
 
 

@@ -52,10 +52,10 @@ def get_data(
     """
     if index is None:
         raise ValueError("Must specify index")
-    
+
     if not filename:
         raise ValueError("Must specific a data file!")
-    
+
     if not os.path.exists(filename):
         raise RuntimeError("Data file does not exist!")
 

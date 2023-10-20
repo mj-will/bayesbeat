@@ -28,7 +28,6 @@ class DoubleDecayingModel(BaseModel):
     """Model of a double decaying sinusoid"""
 
     def __init__(self, x_data, y_data, rescale: bool = False):
-
         # define param names as list
         self.rescale = rescale
         if self.rescale:

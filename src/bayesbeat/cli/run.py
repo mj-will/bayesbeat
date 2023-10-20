@@ -26,7 +26,8 @@ def run(config, index, log_level, output):
 
     model_name = config["Model"].pop("name")
     model_config = {
-        k.replace("-", "_"): try_literal_eval(v) for k, v in config.items("Model")
+        k.replace("-", "_"): try_literal_eval(v)
+        for k, v in config.items("Model")
     }
     logger.info(f"Model name: {model_name}")
     logger.info(f"Model config: {model_config}")

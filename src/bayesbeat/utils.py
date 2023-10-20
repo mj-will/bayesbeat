@@ -89,4 +89,4 @@ def try_literal_eval(value: Any, /) -> Any:
     try:
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):
-            return value
+        return value

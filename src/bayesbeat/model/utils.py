@@ -14,11 +14,12 @@ def get_model(
     x_data: np.ndarray,
     y_data: np.ndarray,
     model_config: Optional[dict] = None,
-    **kwargs
+    **kwargs,
 ):
     """Get an instance of model from a name, x and y data."""
 
     from . import _MODELS
+
     if model_config is None:
         model_config = {}
 
