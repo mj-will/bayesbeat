@@ -3,6 +3,8 @@ import configparser
 import importlib.resources as pkg_resources
 import logging
 
+from ..utils import try_literal_eval
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,11 +19,7 @@ class BayesBeatConfigParser(configparser.ConfigParser):
         self.read(self.default_config)
 
     def get(self, section, option, **kwargs):
-        val = super().get(section, option, **kwargs)
-        try:
-            return literal_eval(val)
-        except (ValueError, SyntaxError):
-            return val
+        return try_literal_eval(super().get(section, option, **kwargs))
 
     def write_to_file(self, filename: str) -> None:
         """Write the config to a file"""

@@ -50,6 +50,7 @@ def build_dag(config_file: str) -> Dagman:
             "n-pool and request-cpus do not match! "
             f"({n_pool} vs {request_cpus})"
         )
+    request_gpus = config.get("HTCondor", "request-gpus")
 
     exe = shutil.which("bayesbeat_run")
     if not exe:
@@ -61,10 +62,16 @@ def build_dag(config_file: str) -> Dagman:
         analysis_output = os.path.join(output, "analysis", tag)
 
         extra_lines = [
-            f"log={log_path}{tag}.log",
-            f"output={log_path}{tag}.out",
-            f"error={log_path}{tag}.err",
+            f"log = {log_path}{tag}.log",
+            f"output = {log_path}{tag}.out",
+            f"error = {log_path}{tag}.err",
         ]
+
+        if request_gpus is not None:
+            if not isinstance(request_gpus, list):
+                request_gpus = [request_gpus]
+            for rg in request_gpus:
+                extra_lines += [f"request_gpus = {rg}",]
 
         job = Job(
             name=job_name,
@@ -72,12 +79,13 @@ def build_dag(config_file: str) -> Dagman:
             queue=1,
             getenv=True,
             submit=submit,
-            request_memory="2GB",
+            request_memory=config.get("HTCondor", "request-memory"),
             request_cpus=request_cpus,
+            request_disk=config.get("HTCondor", "request-disk"),
             extra_lines=extra_lines,
         )
         job.add_arg(
-            f"--config={complete_config_file} "
+            f"{complete_config_file} "
             f"--output={analysis_output} "
             f"--index={i} "
         )

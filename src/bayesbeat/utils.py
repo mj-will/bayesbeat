@@ -1,7 +1,9 @@
 """General utilities"""
+import ast
 import logging
 import os
 import sys
+from typing import Any
 
 
 def configure_logger(
@@ -80,3 +82,11 @@ def configure_logger(
     logger.info(f"Running bayesbeat version {version}")
 
     return logger
+
+
+def try_literal_eval(value: Any, /) -> Any:
+    """Try to call literal eval return value if an error is raised"""
+    try:
+        return ast.literal_eval(value)
+    except (ValueError, SyntaxError):
+            return value

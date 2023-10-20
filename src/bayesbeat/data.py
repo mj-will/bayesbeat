@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional, Tuple
 
 import hdf5storage
@@ -19,10 +20,6 @@ def get_data(
     index: int,
     maximum_amplitude: Optional[float] = None,
     rescale_amplitude: bool = True,
-    use_bryan_model: bool = True,
-    sample_rate: int = 250e3,
-    samples_per_measurement: int = 50e3,
-    reduce_factor: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """Get a specific piece of data from a file.
 
@@ -55,6 +52,12 @@ def get_data(
     """
     if index is None:
         raise ValueError("Must specify index")
+    
+    if not filename:
+        raise ValueError("Must specific a data file!")
+    
+    if not os.path.exists(filename):
+        raise RuntimeError("Data file does not exist!")
 
     matdata = hdf5storage.loadmat(filename)
     times = matdata["ring_times"].T
@@ -77,25 +80,4 @@ def get_data(
     if rescale_amplitude:
         amplitudes = amplitudes / amplitudes.max()
 
-    if use_bryan_model:
-        red_sample_rate = int(
-            reduce_factor * sample_rate
-        )  # Data acquisition rate of hardware (Hz)
-        red_samples_per_measurement = int(
-            reduce_factor * samples_per_measurement
-        )  # Number of samples per measurment (n.a)
-        measurement_duration = (
-            red_samples_per_measurement / red_sample_rate
-        )  # Length of each individual measurement (s)
-
-        times_full = np.zeros((len(times), red_samples_per_measurement))
-        for p, t1 in enumerate(times):
-            # measurement time recorded at end of processing
-            times_full[p] = np.linspace(
-                t1 - measurement_duration, t1, red_samples_per_measurement
-            )
-
-        return times_full, amplitudes, freqs[index]
-
-    else:
-        return times, amplitudes, freqs[index]
+    return times, amplitudes, freqs[index]
