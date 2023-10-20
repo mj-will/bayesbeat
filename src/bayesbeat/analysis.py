@@ -71,7 +71,7 @@ def run_nessai(
     sampler.run(plot_posterior=False, plot_logXlogL=False)
 
     if plot:
-        from .model import signal_from_dict
+        from .model.simple import signal_from_dict
 
         logger.info("Producing plots")
 
