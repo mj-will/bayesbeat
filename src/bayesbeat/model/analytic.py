@@ -4,10 +4,10 @@ from typing import Optional
 from nessai.livepoint import live_points_to_dict
 import numpy as np
 
-from .base import BaseModel
+from .base import BaseModel, UniformPriorMixin
 
 
-class AnalyticGaussianBeam(BaseModel):
+class AnalyticGaussianBeam(UniformPriorMixin, BaseModel):
     """Analytic Gaussian Beam Model."""
 
     constant_parameters: dict
@@ -42,13 +42,11 @@ class AnalyticGaussianBeam(BaseModel):
 
         bounds = {
             "a_1": [5e-6, 1e-4],
-            "omega_1": [1e3, 1e4],
-            "phi_1": [0, 2 * np.pi],
-            "tau_1": [100, 1000],
             "a_2": [5e-6, 1e-4],
-            "omega_2": [1e3, 1e4],
-            "phi_2": [0, 2 * np.pi],
+            "tau_1": [100, 1000],
             "tau_2": [100, 1000],
+            "domega": [0.01, 1.0],
+            "dphi": [0, 2 * np.pi],
         }
 
         if beam_radius is None:
@@ -80,6 +78,7 @@ class AnalyticGaussianBeam(BaseModel):
     def log_prior(self, x):
         return (
             np.log(self.in_bounds(x), dtype="float")
+            # + np.log(x["tau_1"] > x["tau_2"])
             - np.log(self.upper_bounds - self.lower_bounds).sum()
         )
 
@@ -87,7 +86,7 @@ class AnalyticGaussianBeam(BaseModel):
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         sigma_noise = x.pop("sigma_noise")
-        y_signal = np.sqrt(cubed_taylor_expansion(self.x_data, **x))
+        y_signal = np.sqrt(cubed_taylor_expansion_reduced(self.x_data, **x))
 
         norm_const = (
             -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
@@ -102,7 +101,408 @@ class AnalyticGaussianBeam(BaseModel):
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         x.pop("sigma_noise")
-        return np.sqrt(cubed_taylor_expansion(self.x_data, **x))
+        return np.sqrt(cubed_taylor_expansion_reduced(self.x_data, **x))
+
+
+def cubed_taylor_expansion_reduced(
+    time_vec: np.ndarray,
+    sigma_beam: float,
+    x_g: float,
+    x_e: float,
+    a_1: float,
+    a_2: float,
+    tau_1: float,
+    tau_2: float,
+    domega: float,
+    dphi: float,
+    x_offset: float,
+):
+    """Function version where it's been Taylor np.expanded out to mu**3"""
+    return (
+        9
+        * a_1**4
+        * a_2**2
+        * (
+            -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+        )
+        ** 2
+        * np.exp(-4 * time_vec / tau_1)
+        * np.exp(-2 * time_vec / tau_2)
+        / 32
+        + 9
+        * a_1**3
+        * a_2**3
+        * (
+            -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+        )
+        ** 2
+        * np.exp(-3 * time_vec / tau_1)
+        * np.exp(-3 * time_vec / tau_2)
+        * np.cos(
+            3 * domega * time_vec
+            + 3 * dphi
+        )
+        / 16
+        + 9
+        * a_1**2
+        * a_2**4
+        * (
+            -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+        )
+        ** 2
+        * np.exp(-2 * time_vec / tau_1)
+        * np.exp(-4 * time_vec / tau_2)
+        / 32
+        + (
+            a_1
+            * (
+                np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2)
+                * x_g**2
+                / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2)
+                * x_e**4
+                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**4
+                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * np.exp(-time_vec / tau_1)
+            + (
+                -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**2
+                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * (
+                3 * a_1**3 * np.exp(-3 * time_vec / tau_1) / 4
+                + 3
+                * a_1
+                * a_2**2
+                * np.exp(-time_vec / tau_1)
+                * np.exp(-2 * time_vec / tau_2)
+                / 2
+                + 3 * a_1 * x_offset**2 * np.exp(-time_vec / tau_1)
+                + a_1 * np.exp(-time_vec / tau_1)
+            )
+        )
+        ** 2
+        / 2
+        + (
+            a_2
+            * (
+                np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2)
+                * x_g**2
+                / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2)
+                * x_e**4
+                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**4
+                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * np.exp(-time_vec / tau_2)
+            + (
+                -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**2
+                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * (
+                3
+                * a_1**2
+                * a_2
+                * np.exp(-2 * time_vec / tau_1)
+                * np.exp(-time_vec / tau_2)
+                / 2
+                + 3 * a_2**3 * np.exp(-3 * time_vec / tau_2) / 4
+                + 3 * a_2 * x_offset**2 * np.exp(-time_vec / tau_2)
+                + a_2 * np.exp(-time_vec / tau_2)
+            )
+        )
+        ** 2
+        / 2
+        + (
+            3
+            * a_1**2
+            * a_2
+            * (
+                a_2
+                * (
+                    np.sqrt(2)
+                    * x_e**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_g**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_e**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * np.exp(-time_vec / tau_2)
+                + (
+                    -np.sqrt(2)
+                    * x_e**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * (
+                    3
+                    * a_1**2
+                    * a_2
+                    * np.exp(-2 * time_vec / tau_1)
+                    * np.exp(-time_vec / tau_2)
+                    / 2
+                    + 3 * a_2**3 * np.exp(-3 * time_vec / tau_2) / 4
+                    + 3 * a_2 * x_offset**2 * np.exp(-time_vec / tau_2)
+                    + a_2 * np.exp(-time_vec / tau_2)
+                )
+            )
+            * (
+                -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**2
+                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * np.exp(-2 * time_vec / tau_1)
+            * np.exp(-time_vec / tau_2)
+            / 4
+            + 3
+            * a_1
+            * a_2**2
+            * (
+                a_1
+                * (
+                    np.sqrt(2)
+                    * x_e**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_g**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_e**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * np.exp(-time_vec / tau_1)
+                + (
+                    -np.sqrt(2)
+                    * x_e**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * (
+                    3 * a_1**3 * np.exp(-3 * time_vec / tau_1) / 4
+                    + 3
+                    * a_1
+                    * a_2**2
+                    * np.exp(-time_vec / tau_1)
+                    * np.exp(-2 * time_vec / tau_2)
+                    / 2
+                    + 3 * a_1 * x_offset**2 * np.exp(-time_vec / tau_1)
+                    + a_1 * np.exp(-time_vec / tau_1)
+                )
+            )
+            * (
+                -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**2
+                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * np.exp(-time_vec / tau_1)
+            * np.exp(-2 * time_vec / tau_2)
+            / 4
+        )
+        * np.cos(2 * domega * time_vec + 2 * dphi)
+        + (
+            3
+            * a_1**2
+            * a_2
+            * (
+                a_1
+                * (
+                    np.sqrt(2)
+                    * x_e**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_g**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_e**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * np.exp(-time_vec / tau_1)
+                + (
+                    -np.sqrt(2)
+                    * x_e**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * (
+                    3 * a_1**3 * np.exp(-3 * time_vec / tau_1) / 4
+                    + 3
+                    * a_1
+                    * a_2**2
+                    * np.exp(-time_vec / tau_1)
+                    * np.exp(-2 * time_vec / tau_2)
+                    / 2
+                    + 3 * a_1 * x_offset**2 * np.exp(-time_vec / tau_1)
+                    + a_1 * np.exp(-time_vec / tau_1)
+                )
+            )
+            * (
+                -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**2
+                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * np.exp(-2 * time_vec / tau_1)
+            * np.exp(-time_vec / tau_2)
+            / 4
+            + 3
+            * a_1
+            * a_2**2
+            * (
+                a_2
+                * (
+                    np.sqrt(2)
+                    * x_e**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_g**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_e**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * np.exp(-time_vec / tau_2)
+                + (
+                    -np.sqrt(2)
+                    * x_e**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * (
+                    3
+                    * a_1**2
+                    * a_2
+                    * np.exp(-2 * time_vec / tau_1)
+                    * np.exp(-time_vec / tau_2)
+                    / 2
+                    + 3 * a_2**3 * np.exp(-3 * time_vec / tau_2) / 4
+                    + 3 * a_2 * x_offset**2 * np.exp(-time_vec / tau_2)
+                    + a_2 * np.exp(-time_vec / tau_2)
+                )
+            )
+            * (
+                -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2)
+                * x_g**2
+                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+            )
+            * np.exp(-time_vec / tau_1)
+            * np.exp(-2 * time_vec / tau_2)
+            / 4
+            + (
+                a_1
+                * (
+                    np.sqrt(2)
+                    * x_e**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_g**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_e**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * np.exp(-time_vec / tau_1)
+                + (
+                    -np.sqrt(2)
+                    * x_e**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * (
+                    3 * a_1**3 * np.exp(-3 * time_vec / tau_1) / 4
+                    + 3
+                    * a_1
+                    * a_2**2
+                    * np.exp(-time_vec / tau_1)
+                    * np.exp(-2 * time_vec / tau_2)
+                    / 2
+                    + 3 * a_1 * x_offset**2 * np.exp(-time_vec / tau_1)
+                    + a_1 * np.exp(-time_vec / tau_1)
+                )
+            )
+            * (
+                a_2
+                * (
+                    np.sqrt(2)
+                    * x_e**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_g**2
+                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    - np.sqrt(2)
+                    * x_e**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**4
+                    / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * np.exp(-time_vec / tau_2)
+                + (
+                    -np.sqrt(2)
+                    * x_e**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    + np.sqrt(2)
+                    * x_g**2
+                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                )
+                * (
+                    3
+                    * a_1**2
+                    * a_2
+                    * np.exp(-2 * time_vec / tau_1)
+                    * np.exp(-time_vec / tau_2)
+                    / 2
+                    + 3 * a_2**3 * np.exp(-3 * time_vec / tau_2) / 4
+                    + 3 * a_2 * x_offset**2 * np.exp(-time_vec / tau_2)
+                    + a_2 * np.exp(-time_vec / tau_2)
+                )
+            )
+        )
+        * np.cos(domega * time_vec + dphi)
+    )
 
 
 def cubed_taylor_expansion(

@@ -7,11 +7,12 @@ import numpy.lib.recfunctions as rfn
 
 
 def generate_all_parameters(
-    samples, frequency: Optional[float] = None
+    samples: np.ndarray,
+    frequency: Optional[float] = None
 ) -> np.ndarray:
     existing = samples.dtype.names
     new = {}
-    if "A2" not in existing:
+    if "A2" not in existing and "A1" in existing:
         if "A_ratio" in existing:
             new["A2"] = samples["A_ratio"] * samples["A1"]
         else:
@@ -22,10 +23,11 @@ def generate_all_parameters(
             new["phi1"] = 1 / (samples["t1"] * np.pi * frequency)
             new["phi2"] = 1 / (samples["t2"] * np.pi * frequency)
 
-    samples = rfn.append_fields(
-        samples,
-        new.keys(),
-        new.values(),
-        dtypes=len(new) * [nessai_config.livepoints.default_float_dtype],
-    )
+    if new:
+        samples = rfn.append_fields(
+            samples,
+            new.keys(),
+            new.values(),
+            dtypes=len(new) * [nessai_config.livepoints.default_float_dtype],
+        )
     return samples

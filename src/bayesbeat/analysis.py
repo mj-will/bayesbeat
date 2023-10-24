@@ -1,19 +1,19 @@
 """Analysis functions"""
+import copy
 import logging
 import os
 from typing import Optional
 
 from nessai import config as nessai_config
 from nessai.flowsampler import FlowSampler
-from nessai.livepoint import live_points_to_dict
+from nessai.livepoint import dict_to_live_points
 from nessai.plot import corner_plot
 from nessai.utils import setup_logger
 import numpy as np
 
-from .data import get_data
-from .model import DoubleDecayingModel, GaussianBeamModel
+from .data import get_data, simulate_data
 from .model.utils import get_model
-from .plot import plot_fit
+from .plot import plot_fit, plot_data
 from .conversion import generate_all_parameters
 from .result import save_summary
 
@@ -33,19 +33,36 @@ def run_nessai(
     seed: int = 1234,
     log_level: str = "INFO",
     plot: bool = True,
+    injection: bool = False,
+    injection_config: Optional[dict] = None,
     **kwargs,
 ):
     """Run the analysis with nessai"""
 
     if output is None:
         output = os.getcwd()
+    os.makedirs(output, exist_ok=True)
 
-    x_data, y_data, frequency = get_data(
-        datafile,
-        index,
-        rescale_amplitude=rescale_amplitude,
-        maximum_amplitude=maximum_amplitude,
-    )
+    if injection:
+        logger.info(f"Creating injection with parameters: {injection_config}")
+        injection_config = copy.deepcopy(injection_config)
+        x_data, y_data, signal, signal_model = simulate_data(
+            injection_config.pop("model_name"),
+            duration=injection_config.pop("duration"),
+            sample_rate=injection_config.pop("sample_rate"),
+            sigma_noise=injection_config.pop("sigma_noise"),
+            rescale_amplitude=rescale_amplitude,
+            maximum_amplitude=maximum_amplitude,
+            **injection_config,
+        )
+    else:
+        x_data, y_data, frequency = get_data(
+            datafile,
+            index,
+            rescale_amplitude=rescale_amplitude,
+            maximum_amplitude=maximum_amplitude,
+        )
+        signal = None
 
     model = get_model(
         model_name,
@@ -54,6 +71,14 @@ def run_nessai(
         model_config=model_config,
         rescale=rescale_amplitude,
     )
+
+    if plot:
+        plot_data(
+            x_data,
+            y_data,
+            signal=signal,
+            filename=os.path.join(output, "data.png")
+        )
 
     setup_logger(label=None, output=None, log_level=log_level)
 
@@ -81,16 +106,12 @@ def run_nessai(
             filename=os.path.join(output, "corner.png"),
         )
 
-        fit_params = {
+        fit_params = dict_to_live_points({
             n: np.median(sampler.posterior_samples[n]) for n in model.names
-        }
+        })
 
-        if "A_ratio" in model.names:
-            fit_params["A2"] = fit_params["A_ratio"] * fit_params["A1"]
-        else:
-            fit_params["A2"] = 1 - fit_params["A1"]
+        fit = model.signal_model(fit_params)
 
-        fit = signal_from_dict(fit_params, x_data)
         plot_fit(x_data, y_data, fit, filename=os.path.join(output, "fit.png"))
 
     samples = generate_all_parameters(
