@@ -8,13 +8,14 @@ import numpy as np
 def plot_data(
     x_data: np.ndarray,
     y_data: np.ndarray,
-    signal: Optional[np.ndarray],
+    signal: Optional[np.ndarray] = None,
     filename: Optional[str] = None,
 ) -> Union[Figure, None]:
     
     fig = plt.figure()
     plt.plot(x_data, y_data, ls="-")
-    plt.plot(x_data, signal, label="Signal")
+    if signal is not None:
+        plt.plot(x_data, signal, label="Signal")
 
     plt.xlabel("Time [s]")
     # TODO: what are the units?
