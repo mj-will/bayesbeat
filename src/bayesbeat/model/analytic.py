@@ -25,11 +25,13 @@ class AnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         sigma_noise: Optional[float] = None,
         prior_bounds: Optional[dict] = None,
         rescale: bool = False,
+        decay_constraint: bool = False,
     ) -> None:
         super().__init__(x_data, y_data)
 
         self.photodiode_gap = photodiode_gap
         self.photodiode_size = photodiode_size
+        self.decay_constraint = decay_constraint
 
         if rescale is True:
             raise NotImplementedError
@@ -75,14 +77,24 @@ class AnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         self.names = list(bounds.keys())
         self.bounds = bounds
 
+    def evaluate_constraints(self, x):
+        """Evaluate any prior constraints"""
+        out = np.zeros(x.size)
+        if self.decay_constraint:
+            out += np.log(x["tau_1"] > x["tau_2"])
+        return out
+
     def log_prior(self, x):
-        return (
-            np.log(self.in_bounds(x), dtype="float")
-            # + np.log(x["tau_1"] > x["tau_2"])
-            - np.log(self.upper_bounds - self.lower_bounds).sum()
-        )
+        """Compute the log-prior probability"""
+        with np.errstate(divide="ignore"):
+            return (
+                np.log(self.in_bounds(x), dtype="float")
+                + self.evaluate_constraints(x)
+                - np.log(self.upper_bounds - self.lower_bounds).sum()
+            )
 
     def log_likelihood(self, x) -> np.ndarray:
+        """Compute the log-likelihood"""
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         sigma_noise = x.pop("sigma_noise")
