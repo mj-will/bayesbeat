@@ -16,6 +16,7 @@ from .model.utils import get_model
 from .plot import plot_fit, plot_data
 from .conversion import generate_all_parameters
 from .result import save_summary
+from .utils import time_likelihood
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ def run_nessai(
             maximum_amplitude=maximum_amplitude,
             **injection_config,
         )
+        frequency = None
     else:
         x_data, y_data, frequency = get_data(
             datafile,
@@ -85,6 +87,9 @@ def run_nessai(
     logger.info(f"Parameters to sample: {model.names}")
     logger.info(f"Priors bounds: {model.bounds}")
 
+    eval_time = time_likelihood(model)
+    logger.info(f"Likelihood evaluation time: {eval_time:.3f}s")
+
     sampler = FlowSampler(
         model,
         output=output,
@@ -96,14 +101,18 @@ def run_nessai(
     sampler.run(plot_posterior=False, plot_logXlogL=False)
 
     if plot:
-        from .model.simple import signal_from_dict
-
         logger.info("Producing plots")
+
+        if injection_config is not None:
+            truths = {k: v for k, v in injection_config.items() if k in model.names}
+        else:
+            truths = None
 
         corner_plot(
             sampler.posterior_samples,
             include=model.names,
             filename=os.path.join(output, "corner.png"),
+            truths=truths,
         )
 
         fit_params = dict_to_live_points({

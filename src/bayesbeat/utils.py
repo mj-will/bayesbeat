@@ -3,7 +3,10 @@ import ast
 import logging
 import os
 import sys
+import time
 from typing import Any
+
+from .model.base import BaseModel
 
 
 def configure_logger(
@@ -90,3 +93,15 @@ def try_literal_eval(value: Any, /) -> Any:
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):
         return value
+
+
+def time_likelihood(model: BaseModel, n: int = 100) -> float:
+    """Time the likelihood"""
+    x = model.new_point(n)
+    # Call once since likelihood may use JIT
+    _ = model.log_likelihood(x[0])
+    start = time.perf_counter()
+    for xx in x:
+        _ = model.log_likelihood(xx)
+    end = time.perf_counter()
+    return (end - start) / n
