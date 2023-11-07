@@ -6,6 +6,12 @@ import numpy as np
 
 from .base import BaseModel, UniformPriorMixin
 
+try:
+    from numba import jit
+except ImportError:
+    def jit(*args, **kwargs):
+        return lambda f: f
+
 
 class AnalyticGaussianBeam(UniformPriorMixin, BaseModel):
     """Analytic Gaussian Beam Model."""
@@ -116,6 +122,7 @@ class AnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         return np.sqrt(cubed_taylor_expansion_reduced(self.x_data, **x))
 
 
+@jit(nopython=True)
 def cubed_taylor_expansion_reduced(
     time_vec: np.ndarray,
     sigma_beam: float,
@@ -130,6 +137,7 @@ def cubed_taylor_expansion_reduced(
     x_offset: float,
 ):
     """Function version where it's been Taylor np.expanded out to mu**3"""
+    # This could probably be optimised.
     return (
         9
         * a_1**4
