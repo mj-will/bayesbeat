@@ -103,7 +103,7 @@ def run_nessai(
     if plot:
         logger.info("Producing plots")
 
-        if injection_config is not None:
+        if injection_config:
             truths = {k: v for k, v in injection_config.items() if k in model.names}
         else:
             truths = None

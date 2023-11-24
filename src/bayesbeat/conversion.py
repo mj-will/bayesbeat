@@ -12,16 +12,16 @@ def generate_all_parameters(
 ) -> np.ndarray:
     existing = samples.dtype.names
     new = {}
-    if "A2" not in existing and "A1" in existing:
-        if "A_ratio" in existing:
-            new["A2"] = samples["A_ratio"] * samples["A1"]
+    if "a_2" not in existing and "a_1" in existing:
+        if "a_ratio" in existing:
+            new["a_2"] = samples["a_ratio"] * samples["a_1"]
         else:
-            new["A2"] = 1 - samples["A1"]
+            new["a_2"] = 1 - samples["a_1"]
 
     if frequency is not None:
-        if "phi1" not in existing:
-            new["phi1"] = 1 / (samples["t1"] * np.pi * frequency)
-            new["phi2"] = 1 / (samples["t2"] * np.pi * frequency)
+        if "phi_1" not in existing:
+            new["phi_1"] = 1 / (samples["tau_1"] * np.pi * frequency)
+            new["phi_2"] = 1 / (samples["tau_2"] * np.pi * frequency)
 
     if new:
         samples = rfn.append_fields(
