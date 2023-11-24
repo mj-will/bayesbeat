@@ -34,7 +34,7 @@ def run_nessai(
     seed: int = 1234,
     log_level: str = "INFO",
     plot: bool = True,
-    **kwargs
+    **kwargs,
 ):
     """Run the analysis with nessai"""
 

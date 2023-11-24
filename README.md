@@ -26,6 +26,8 @@ conda env create -f environment.yml
 
 The environment will be called `bayes-beat`.
 
+**Note:** this can be very slow and on certain systems.
+
 ### Activating the environment
 
 We must activate the environment to use the installed packages:
@@ -36,35 +38,100 @@ conda activate bayes-beat
 
 You should now see `(bayes-beat)` in your terminal.
 
+
+### Installing bayesbeat
+
+Once you have activated the environment, install `bayesbeat` by running the following command in the root directory of the repository
+
+```
+pip install .
+```
+
+All the necessary dependencies should already be installed, so this should be quite quick.
+
 ## Running the analysis
 
 Before running the analysis, make sure you have activated the environment. See the section above for instructions.
 
+Here is an example of how to the run analysis for a data file called `PyTotalAnalysis.mat` located in `data/`. The index determines which of ringdowns in the data file will be analyzed.
 
-### Running without HTCondor
+### Creating an ini file
 
-Here is an example of how to the run analysis for a data file called `PyTotalAnalysis.mat` located in `data/`. The index determines which of ringdowns in the data file will be analysed.
+Create an `.ini` file with a given name, e.g. `example.ini`
 
 ```
-python run_nessai.py --datafile=data/PyTotalAnalysis.mat --index=0 --outdir=outdir/ --rescale --n-pool=4
+bayesbeat_create_ini example.ini
 ```
+Open the new ini file and set the values for the different fields. You must specify `output` and `datafile`, the other settings will all have defaults that should work.
+The most important are:
 
-`--rescale` indicates that the code will rescale the maximum amplitude to be 1 and `--n-pool=4` defines the number of cores to use. You can configure the output directory by setting `outdir`.
+* `indices`: determines which ringdowns in the data file will be analyzed. Only used if running via Condor. If `None` or `'all'` all indices will be analysed. Otherwise, should be a list of integers (starting at 0).
+* `n-pool`: the number of cores to use. We recommend setting this to at least 4.
+
+The file should look something like this:
+
+```
+[General]
+output = "outdir/"
+label = "disk_0"
+datafile = "data/PyTotalAnalysis.mat"
+indices = None
+seed = 1234
+plot = True
+
+[Model]
+rescale-amplitude = False
+maximum-amplitude = None
+
+[Analysis]
+n-pool = 4
+resume = True
+
+[Sampler]
+nlive = 1000
+reset_flow = 8
+
+[HTCondor]
+request-disk = "2GB"
+request-memory = "2GB"
+request-cpus = None
+```
 
 ### Running with HTCondor
 
-You will also need to make sure the file `run_nessai.py` has the correct permissions, you'll only need to do this once.
+The recommended way to use `bayesbeat` is on a cluster with HTCondor installed.
+This allows analyses to run in parallel rather than one-by-one on a local machine.
+To run a local machine, see the section below.
+
+Once you have a create an ini file, the analyses can be prepared (built) and then submitted.
+To do so run
 
 ```
-chmod u+x run_nessai.py
+bayesbeat_build example.ini
 ```
 
-To submit a run for a specific data index simply run the following on cluster with condor configured:
+this will construct a condor DAG which can be submitted using the command that is printed after the command has run.
+Alternatively, if you run
 
 ```
-bash submit_run.sh <datafile> <index> <output directory>
+bayesbeat_build example.ini --submit
 ```
 
-where you should replace `<text>` with the relevant information.
+the analysis will be built and submitted in a single step.
 
-You may need to add accounting tags if running on an LDG cluster.
+**Note:** if the output directory already exists, an error will be raised and the analysis will not be built or submitted.
+
+### Running on a local machine (without HTCondor)
+
+To run an analysis locally instead of via HTCondor, use the following command
+
+```
+bayesbeat_run example.ini --index 0
+```
+
+where `--index` specifies which ringdown in the datafile to analyse.
+
+**Note:** this ignores the value of `indices` in the ini file.
+
+**Note:** it is not possible to analyse multiple ringdowns with a single call to `bayesbeat_run`.
+

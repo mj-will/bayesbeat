@@ -19,6 +19,7 @@ dependencies = [
     "hdf5storage",
     "nessai>=0.8",
     "pycondor",
+    "corner",
 ]
 
 dynamic = ["version"]
