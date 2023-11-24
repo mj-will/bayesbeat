@@ -5,6 +5,29 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 
+def plot_data(
+    x_data: np.ndarray,
+    y_data: np.ndarray,
+    signal: Optional[np.ndarray] = None,
+    filename: Optional[str] = None,
+) -> Union[Figure, None]:
+    
+    fig = plt.figure()
+    plt.plot(x_data, y_data, ls="-")
+    if signal is not None:
+        plt.plot(x_data, signal, label="Signal")
+
+    plt.xlabel("Time [s]")
+    # TODO: what are the units?
+    plt.ylabel("Amplitude")
+
+    plt.tight_layout()
+
+    if filename is not None:
+        fig.savefig(filename)
+    else:
+        return fig
+
 
 def plot_fit(
     x_data: np.ndarray,

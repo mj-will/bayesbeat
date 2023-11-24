@@ -1,8 +1,13 @@
+import copy
+import inspect
 import logging
-from typing import Optional, Tuple
+import os
+from typing import Callable, Optional, Tuple
 
-import hdf5storage
+from nessai.livepoint import dict_to_live_points
 import numpy as np
+
+from .model.utils import get_model_class
 
 
 logger = logging.getLogger(__name__)
@@ -49,8 +54,15 @@ def get_data(
     ValueError
         If an index is not specified.
     """
+    import hdf5storage
     if index is None:
         raise ValueError("Must specify index")
+
+    if not filename:
+        raise ValueError("Must specific a data file!")
+
+    if not os.path.exists(filename):
+        raise RuntimeError("Data file does not exist!")
 
     matdata = hdf5storage.loadmat(filename)
     times = matdata["ring_times"].T
@@ -72,4 +84,60 @@ def get_data(
 
     if rescale_amplitude:
         amplitudes = amplitudes / amplitudes.max()
+
     return times, amplitudes, freqs[index]
+
+
+def simulate_data(
+    model_name: str,
+    sample_rate: float,
+    duration: float,
+    sigma_noise: float,
+    maximum_amplitude: Optional[float] = None,
+    rescale_amplitude: Optional[float] = None,
+    **kwargs
+):
+    """
+    
+    Parameters
+    ----------
+    sample_rate
+        Sample rate in Hz
+    duration
+        Duration in seconds
+    sigma_noise
+        Standard deviation of the Gaussian noise
+    """
+    ModelClass = get_model_class(model_name)
+
+    sig = inspect.signature(ModelClass)
+    allowed_kwargs = sig.parameters.keys()
+
+    parameters = copy.deepcopy(kwargs)
+    model_kwargs = {"sigma_noise": np.nan}
+    for k in kwargs:
+        if k in allowed_kwargs:
+            model_kwargs[k] = parameters.pop(k)
+
+    times = np.linspace(0, duration, int(sample_rate * duration))
+    model = ModelClass(x_data=times, y_data=None, **model_kwargs)
+
+    if isinstance(parameters, dict):
+        parameters = dict_to_live_points(parameters, non_sampling_parameters=False)
+
+    y_signal = model.signal_model(parameters)
+
+    y_data = y_signal + sigma_noise * np.random.randn(len(y_signal))
+
+    if maximum_amplitude:
+        logger.info(f"Initial maximum amplitude: {y_data.max()}")
+        start = np.flatnonzero(y_data > maximum_amplitude)[-1]
+        times, y_data = times[start:], y_data[start:]
+        times = times - times[0]
+
+    if rescale_amplitude:
+        y_data = y_data / y_data.max()
+
+    model.set_x_data(times)
+    model.set_y_data(y_data)
+    return model.x_data, model.y_data, y_signal, model

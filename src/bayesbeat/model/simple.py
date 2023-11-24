@@ -1,7 +1,6 @@
-"""Models"""
-
-from nessai.model import Model
 import numpy as np
+
+from .base import BaseModel
 
 
 def sigmodel(A1, A2, t1, t2, p1, dp, dw, x):
@@ -25,10 +24,10 @@ def signal_from_dict(d, x_data):
     )
 
 
-class DoubleDecayingModel(Model):
+class DoubleDecayingModel(BaseModel):
     """Model of a double decaying sinusoid"""
 
-    def __init__(self, x, y, rescale: bool = False):
+    def __init__(self, x_data, y_data, rescale: bool = False):
         # define param names as list
         self.rescale = rescale
         if self.rescale:
@@ -51,9 +50,7 @@ class DoubleDecayingModel(Model):
         }
         self.names = names + other_names
         self.bounds = bounds | other_bounds
-        self.x_data = x
-        self.y_data = y
-        self.n_samples = len(x)
+        super().__init__(x_data, y_data)
 
     def log_prior(self, x):
         """
