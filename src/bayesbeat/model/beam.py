@@ -39,22 +39,22 @@ class GaussianBeamModel(BaseModel):
         self.vectorised_likelihood = False
 
         if self.rescale:
-            names = ["A1"]
+            names = ["a_1"]
             bounds = {
-                "A1": (0.5, 1),
+                "a_1": (0.5, 1),
             }
         elif self.use_ratio:
-            names = ["A1", "A_ratio"]
-            bounds = {"A1": (1e-7, 5e-4), "A_ratio": (0.1, 1)}
+            names = ["a_1", "a_ratio"]
+            bounds = {"a_1": (1e-7, 5e-4), "a_ratio": (0.1, 1)}
         else:
-            names = ["A1", "A2"]
-            bounds = {"A1": (1e-7, 5e-4), "A2": (1e-7, 5e-4)}
+            names = ["a_1", "a_2"]
+            bounds = {"a_1": (1e-7, 5e-4), "a_2": (1e-7, 5e-4)}
 
         names += [
             "dw",
             "dp",
-            "decay1",
-            "decay2",
+            "tau_1",
+            "tau_2",
             # "x_offset",
             "beam_radius",
             "sigma",
@@ -72,9 +72,9 @@ class GaussianBeamModel(BaseModel):
 
         other_bounds = {
             # "f1": tuple(np.array([5e2, 40e3]) * reduce_factor),
-            # "ph1": (0, 2 * np.pi),
-            "decay1": (10, 8000),
-            "decay2": (10, 8000),
+            # "phi_1": (0, 2 * np.pi),
+            "tau_1": (10, 8000),
+            "tau_2": (10, 8000),
             # "x_offset": (-0.005, 0.005),  # offset in m
             "beam_radius": (0.0005, 0.005),  # beam radius in m
             "sigma": (0, 50),
@@ -82,15 +82,15 @@ class GaussianBeamModel(BaseModel):
 
         self.device = device
         self.f1 = 2000
-        self.ph1 = 0.0
+        self.phi_1 = 0.0
 
         if self.device == "cpu":
             logger.warning(
                 "Running likelihood with CPU, sampling may be very slow!"
             )
 
-        self.PD_gap = photodiode_gap
-        self.PD_size = photodiode_size
+        self.photodiode_gap = photodiode_gap
+        self.photodiode_size = photodiode_size
         self.x_offset = 0.0
         self.names = names
         self.bounds = bounds | other_bounds
@@ -157,32 +157,32 @@ class GaussianBeamModel(BaseModel):
 
     def signal_model(self, x):
         """Return the signal for a given point"""
-        A1 = x["A1"].item()
+        a_1 = x["a_1"].item()
         if self.rescale:
-            A2 = 1 - A1
+            a_2 = 1 - a_1
         elif self.use_ratio:
-            A2 = x["A_ratio"].item() * A1
+            a_2 = x["a_ratio"].item() * a_1
         else:
-            A2 = x["A2"]
+            a_2 = x["a_2"]
 
         f2 = x["f1"] + x["df"]
-        ph2 = np.mod(self.ph1 + x["dp"], 2 * np.pi)
+        phi_2 = np.mod(self.phi_1 + x["dp"], 2 * np.pi)
 
         with torch.inference_mode():
             return (
                 (
                     signal_model(
                         self.x_data,
-                        self.PD_gap,
-                        self.PD_size,
-                        A1,
+                        self.photodiode_gap,
+                        self.photodiode_size,
+                        a_1,
                         x["f1"],
-                        self.ph1,
-                        x["decay1"],
-                        A2,
+                        self.phi_1,
+                        x["tau_1"],
+                        a_2,
                         f2,
-                        ph2,
-                        x["decay2"],
+                        phi_2,
+                        x["tau_2"],
                         self.x_offset,  # x["x_offset"],
                         x["beam_radius"],
                     )
@@ -192,15 +192,15 @@ class GaussianBeamModel(BaseModel):
             )
 
     def log_likelihood(self, x):
-        A1 = x["A1"].item()
+        a_1 = x["a_1"].item()
         if self.rescale:
-            A2 = 1 - A1
+            a_2 = 1 - a_1
         elif self.use_ratio:
-            A2 = x["A_ratio"].item() * A1
+            a_2 = x["a_ratio"].item() * a_1
         else:
-            A2 = x["A2"]
+            a_2 = x["a_2"]
         f2 = self.f1 - (x["dw"] / np.pi)
-        ph2 = np.mod(self.ph1 + x["dp"], 2 * np.pi)
+        phi_2 = np.mod(self.phi_1 + x["dp"], 2 * np.pi)
         with torch.inference_mode():
             logl = (
                 (
@@ -208,16 +208,16 @@ class GaussianBeamModel(BaseModel):
                         self.x_data,
                         self.y_data,
                         self.n_samples,
-                        self.PD_gap,
-                        self.PD_size,
-                        A1,
+                        self.photodiode_gap,
+                        self.photodiode_size,
+                        a_1,
                         self.f1,
-                        self.ph1,
-                        x["decay1"],
-                        A2,
+                        self.phi_1,
+                        x["tau_1"],
+                        a_2,
                         f2,
-                        ph2,
-                        x["decay2"],
+                        phi_2,
+                        x["tau_2"],
                         self.x_offset,  # x["x_offset"],
                         x["beam_radius"],
                         x["sigma"],
@@ -267,43 +267,43 @@ def int_from_disp(
 
     returns
     ---------
-    PD_left:
-    PD_right:
-    PD_sum:
-    PD_diff:
+    photodiode_left:
+    photodiode_right:
+    photodiode_sum:
+    photodiode_diff:
     """
-    PD_left = gaussian_cdf(edges, loc=-1 * d, scale=omega / 2) - gaussian_cdf(
+    photodiode_left = gaussian_cdf(edges, loc=-1 * d, scale=omega / 2) - gaussian_cdf(
         gap, loc=-1 * d, scale=omega / 2
     )
-    PD_right = gaussian_cdf(edges, loc=1 * d, scale=omega / 2) - gaussian_cdf(
+    photodiode_right = gaussian_cdf(edges, loc=1 * d, scale=omega / 2) - gaussian_cdf(
         gap, loc=1 * d, scale=omega / 2
     )
-    return PD_right - PD_left
+    return photodiode_right - photodiode_left
 
 
 @torch.jit.script
 def signal_model(
     x_data: torch.Tensor,
-    PD_gap: float,
-    PD_size: float,
-    Amp1: float,
+    photodiode_gap: float,
+    photodiode_size: float,
+    a_1: float,
     f1: float,
-    ph1: float,
-    decay1: float,
-    Amp2: float,
+    phi_1: float,
+    tau_1: float,
+    a_2: float,
     f2: float,
-    ph2: float,
-    decay2: float,
+    phi_2: float,
+    tau_2: float,
     x_offset: float,
     beam_radius: float,
 ) -> torch.Tensor:
     """get the model for the peaks"""
     disp = (
-        decaying_sine(x_data, Amp1, f1, ph1, decay1)
-        + decaying_sine(x_data, Amp2, f2, ph2, decay2)
+        decaying_sine(x_data, a_1, f1, phi_1, tau_1)
+        + decaying_sine(x_data, a_2, f2, phi_2, tau_2)
         + x_offset
     )
-    Diff = int_from_disp(disp, PD_gap, PD_size, beam_radius)
+    Diff = int_from_disp(disp, photodiode_gap, photodiode_size, beam_radius)
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
     return peaks_total
@@ -314,16 +314,16 @@ def log_likelihood(
     x_data: torch.Tensor,
     y_data: torch.Tensor,
     n_samples: int,
-    PD_gap: float,
-    PD_size: float,
-    Amp1: float,
+    photodiode_gap: float,
+    photodiode_size: float,
+    a_1: float,
     f1: float,
-    ph1: float,
-    decay1: float,
-    Amp2: float,
+    phi_1: float,
+    tau_1: float,
+    a_2: float,
     f2: float,
-    ph2: float,
-    decay2: float,
+    phi_2: float,
+    tau_2: float,
     x_offset: float,
     beam_radius: float,
     sigma: float,
@@ -331,16 +331,16 @@ def log_likelihood(
     norm_const = -0.5 * n_samples * math.log(2 * math.pi * sigma**2)
     y_signal = signal_model(
         x_data,
-        PD_gap,
-        PD_size,
-        Amp1,
+        photodiode_gap,
+        photodiode_size,
+        a_1,
         f1,
-        ph1,
-        decay1,
-        Amp2,
+        phi_1,
+        tau_1,
+        a_2,
         f2,
-        ph2,
-        decay2,
+        phi_2,
+        tau_2,
         x_offset,
         beam_radius,
     )
