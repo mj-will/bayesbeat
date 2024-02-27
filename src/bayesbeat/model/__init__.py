@@ -13,4 +13,5 @@ _MODELS = {
 __all__ = [
     "DoubleDecayingModel",
     "GaussianBeamModel",
+    "GenericAnalyticGaussianBeam",
 ]

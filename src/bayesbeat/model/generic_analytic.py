@@ -33,7 +33,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         prior_bounds: Optional[dict] = None,
         rescale: bool = False,
         decay_constraint: bool = False,
-        n_terms: int = 3
+        n_terms: int = 3,
+        coefficients_filename: str = None
     ) -> None:
         super().__init__(x_data, y_data)
 
@@ -44,8 +45,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         if n_terms != 3:
             raise Exception("Currently only working for three terms")
         
-        terms_filename = f"C_coefficients_Simple_erf_model_{n_terms}_Terms.txt"
-        with open(terms_filename, "r") as f:
+        terms_filename = coefficients_filename
+        with open(terms_filename, "rb") as f:
             self.coefficients = dill.load(f, "rb")
 
         """
@@ -60,8 +61,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         self.model_function = sympy.lambdify([B_1, B_2, w_1, w_2, x_0, C_x], equation)
         """
 
-        if rescale is True:
-            raise NotImplementedError
+        #if rescale is True:
+        #    raise NotImplementedError
 
         # Use the naming convention that Bryan used
         self.constant_parameters = dict(
@@ -70,11 +71,11 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         )
 
         bounds = {
-            "a_1": [5e-6, 1e-4],
-            "a_2": [5e-6, 1e-4],
+            "a_1": [5e-6, 1e-2],
+            "a_2": [5e-6, 1e-2],
             "tau_1": [100, 1000],
-            "tau_2": [100, 1000],
-            "domega": [0.01, 1.0],
+            "tau_2": [100, 2000],
+            "domega": [0.01, 0.5],
             "dphi": [0, 2 * np.pi],
         }
 
@@ -84,7 +85,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             self.constant_parameters["sigma_beam"] = beam_radius / 2.0
 
         if x_offset is None:
-            bounds["x_offset"] = [-1e3, 1e-3]
+            bounds["x_offset"] = [-1e-3, 1e-3]
         else:
             self.constant_parameters["x_offset"] = x_offset
 
@@ -108,7 +109,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         """Evaluate any prior constraints"""
         out = np.zeros(x.size)
         if self.decay_constraint:
-            out += np.log(x["tau_1"] > x["tau_2"])
+            #out += np.log(x["tau_1"] > x["tau_2"])
+            out += np.log(x["a_1"] > x["a_2"])
         return out
 
     def log_prior(self, x):
@@ -125,7 +127,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         sigma_noise = x.pop("sigma_noise")
-        y_signal = self.signal_model(x)
+        y_signal = np.sqrt(model_function(self.x_data, self.coefficients, **x))
 
         norm_const = (
             -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
@@ -140,12 +142,12 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         x.pop("sigma_noise")
-    
-        return np.sqrt(model_function(self.x_data, **x))
+        return np.sqrt(model_function(self.x_data, self.coefficients, **x))
     
 
 def model_function(
     time_vec: np.ndarray,
+    Cterms: np.ndarray,
     sigma_beam: float,
     x_g: float,
     x_e: float,
@@ -161,76 +163,58 @@ def model_function(
     B1 = a_1 * np.exp(-time_vec/tau_1)
     B2 = a_2 * np.exp(-time_vec/tau_2)
     dw = 2*np.pi*time_vec*domega + dphi
-    output = three_term_generic(B1, B2, dw, x_offset)
+    output = three_term_generic(B1, B2, dw, x_offset, Cterms)
     
     
     return output
 
-def three_term_generic(
-    B_1, 
-    B_2, 
-    domega, 
-    x_0, 
-    _Dummy_37):
-    
-    [C_0, C_1, C_2, C_3] = _Dummy_37
-    output = (29/128)*B_1**6*C_3**2 
-    + (3/128)*B_1**4*(
-        87*B_2**2*C_3**2 
-        + 24*C_1*C_3 
-        + 8*C_2**2 
-        + 96*C_2*C_3*x_0 
-        + 144*C_3**2*x_0**2
-        ) 
-    + (29/64)*B_1**3*B_2**3*C_3**2*np.cos(3*domega) 
-    + (3/64)*B_1**2*B_2**2*(
-        29*B_1**2*C_3**2 
-        + 29*B_2**2*C_3**2 
-        + 24*C_1*C_3 
-        + 8*C_2**2 
-        + 96*C_2*C_3*x_0 
-        + 144*C_3**2*x_0**2
-        )*np.cos(2*domega) 
-    + (1/128)*B_1**2*(
-        261*B_2**4*C_3**2 
-        + 96*B_2**2*(3*C_1*C_3 + C_2**2 + 12*C_2*C_3*x_0 + 18*C_3**2*x_0**2)
-        + 64*C_0*C_2 
-        + 192*C_0*C_3*x_0 
-        + 48*C_1**2 
-        + 256*C_1*C_2*x_0 
-        + 480*C_1*C_3*x_0**2 
-        + 256*C_2**2*x_0**2 
-        + 832*C_2*C_3*x_0**3 
-        + 624*C_3**2*x_0**4
-        ) 
-    + (1/64)*B_1*B_2*(
-        87*B_1**4*C_3**2 
-        + 3*B_1**2*(87*B_2**2*C_3**2 + 48*C_1*C_3 + 16*C_2**2 + 192*C_2*C_3*x_0 + 288*C_3**2*x_0**2) 
-        + 87*B_2**4*C_3**2 
-        + 48*B_2**2*(3*C_1*C_3 + C_2**2 + 12*C_2*C_3*x_0 + 18*C_3**2*x_0**2) 
-        + 64*C_0*C_2 
-        + 192*C_0*C_3*x_0 
-        + 48*C_1**2 
-        + 256*C_1*C_2*x_0 
-        + 480*C_1*C_3*x_0**2 
-        + 256*C_2**2*x_0**2 
-        + 832*C_2*C_3*x_0**3 
-        + 624*C_3**2*x_0**4)*np.cos(domega) 
+def three_term_generic(B_1, B_2, dw, x_0, _Dummy_36):
+    """three term generic function
+
+    Args:
+        B_1 (_type_): _description_
+        B_2 (_type_): _description_
+        dw (_type_): _description_
+        x_0 (_type_): _description_
+        _Dummy_36 (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    [C_0, C_1, C_2, C_3] = _Dummy_36
+    output = ((29/128)*B_1**6*C_3**2 
+    + B_1**4*((261/128)*B_2**2*C_3**2 
+              + (9/16)*C_1*C_3 
+              + (3/16)*C_2**2 
+              + (9/4)*C_2*C_3*x_0 
+              + (27/8)*C_3**2*x_0**2) 
+    + (29/64)*B_1**3*B_2**3*C_3**2*np.cos(3*dw) 
+    + B_1**2*((261/128)*B_2**4*C_3**2 
+              + B_2**2*((9/4)*C_1*C_3 
+                        + (3/4)*C_2**2 
+                        + 9*C_2*C_3*x_0 
+                        + (27/2)*C_3**2*x_0**2) 
+                        + (1/2)*C_0*C_2 
+                        + (3/2)*C_0*C_3*x_0 
+                        + (3/8)*C_1**2 
+                        + 2*C_1*C_2*x_0 
+                        + (15/4)*C_1*C_3*x_0**2 
+                        + 2*C_2**2*x_0**2 
+                        + (13/2)*C_2*C_3*x_0**3 
+                        + (39/8)*C_3**2*x_0**4) 
     + (29/128)*B_2**6*C_3**2 
-    + (3/16)*B_2**4*(
-        3*C_1*C_3 
-        + C_2**2 
-        + 12*C_2*C_3*x_0 
-        + 18*C_3**2*x_0**2) 
-    + (1/8)*B_2**2*(
-        4*C_0*C_2 
-        + 12*C_0*C_3*x_0 
-        + 3*C_1**2 
-        + 16*C_1*C_2*x_0 
-        + 30*C_1*C_3*x_0**2 
-        + 16*C_2**2*x_0**2 
-        + 52*C_2*C_3*x_0**3 
-        + 39*C_3**2*x_0**4) 
+    + B_2**4*((9/16)*C_1*C_3 
+            + (3/16)*C_2**2 
+            + (9/4)*C_2*C_3*x_0 
+            + (27/8)*C_3**2*x_0**2) 
+    + B_2**2*((1/2)*C_0*C_2 
+              + (3/2)*C_0*C_3*x_0 
+              + (3/8)*C_1**2 
+              + 2*C_1*C_2*x_0 
+              + (15/4)*C_1*C_3*x_0**2 
+              + 2*C_2**2*x_0**2 
+              + (13/2)*C_2*C_3*x_0**3 
+              + (39/8)*C_3**2*x_0**4) 
     + (1/2)*C_0**2 
     + C_0*C_1*x_0 
     + C_0*C_2*x_0**2 
@@ -240,7 +224,30 @@ def three_term_generic(
     + C_1*C_3*x_0**4 
     + (1/2)*C_2**2*x_0**4 
     + C_2*C_3*x_0**5 
-    + (1/2)*C_3**2*x_0**6
-
-
+    + (1/2)*C_3**2*x_0**6 
+    + ((87/64)*B_1**4*B_2**2*C_3**2 
+       + B_1**2*((87/64)*B_2**4*C_3**2 
+                 + B_2**2*((9/8)*C_1*C_3 
+                           + (3/8)*C_2**2 
+                           + (9/2)*C_2*C_3*x_0 
+                           + (27/4)*C_3**2*x_0**2)))*np.cos(2*dw) 
+    + ((87/64)*B_1**5*B_2*C_3**2 
+       + B_1**3*((261/64)*B_2**3*C_3**2 
+                 + B_2*((9/4)*C_1*C_3 
+                        + (3/4)*C_2**2 
+                        + 9*C_2*C_3*x_0 
+                        + (27/2)*C_3**2*x_0**2)) 
+                        + B_1*((87/64)*B_2**5*C_3**2 
+                               + B_2**3*((9/4)*C_1*C_3 
+                                         + (3/4)*C_2**2 
+                                         + 9*C_2*C_3*x_0 
+                                         + (27/2)*C_3**2*x_0**2) 
+                                         + B_2*(C_0*C_2 
+                                                + 3*C_0*C_3*x_0 
+                                                + (3/4)*C_1**2 
+                                                + 4*C_1*C_2*x_0 
+                                                + (15/2)*C_1*C_3*x_0**2 
+                                                + 4*C_2**2*x_0**2 
+                                                + 13*C_2*C_3*x_0**3 
+                                                + (39/4)*C_3**2*x_0**4)))*np.cos(dw))
     return output
