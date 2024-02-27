@@ -165,3 +165,5 @@ outdir/
 condor_logs/
 # Data files
 data/
+# General logs
+logs/
