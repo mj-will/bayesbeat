@@ -95,6 +95,8 @@ def simulate_data(
     sigma_noise: float,
     maximum_amplitude: Optional[float] = None,
     rescale_amplitude: Optional[float] = None,
+    gaussian_noise: bool = True,
+    zero_noise: bool = False,
     **kwargs
 ):
     """
@@ -112,22 +114,33 @@ def simulate_data(
 
     sig = inspect.signature(ModelClass)
     allowed_kwargs = sig.parameters.keys()
+    
+    if zero_noise:
+        sigma_noise = 0.0
 
     parameters = copy.deepcopy(kwargs)
-    model_kwargs = {"sigma_noise": np.nan}
+    model_kwargs = {}
     for k in kwargs:
         if k in allowed_kwargs:
             model_kwargs[k] = parameters.pop(k)
-
     times = np.linspace(0, duration, int(sample_rate * duration))
     model = ModelClass(x_data=times, y_data=None, **model_kwargs)
 
     if isinstance(parameters, dict):
         parameters = dict_to_live_points(parameters, non_sampling_parameters=False)
 
-    y_signal = model.signal_model(parameters)
-
-    y_data = y_signal + sigma_noise * np.random.randn(len(y_signal))
+    logger.info(
+        f"Simulating signal with {ModelClass} model and parameters {parameters}"
+    )
+    if gaussian_noise:
+        y_signal = model.signal_model(parameters)
+        y_data = y_signal + sigma_noise * np.random.randn(len(y_signal))
+    else:
+        try:
+            y_data = model.signal_model_with_noise(parameters, noise_scale=sigma_noise)
+            y_signal = model.signal_model(parameters)
+        except NotImplementedError:
+            raise RuntimeError("model only supports Gaussian noise")
 
     if maximum_amplitude:
         logger.info(f"Initial maximum amplitude: {y_data.max()}")
@@ -138,6 +151,4 @@ def simulate_data(
     if rescale_amplitude:
         y_data = y_data / y_data.max()
 
-    model.set_x_data(times)
-    model.set_y_data(y_data)
-    return model.x_data, model.y_data, y_signal, model
+    return times, y_data, y_signal
