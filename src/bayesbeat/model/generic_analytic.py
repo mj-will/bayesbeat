@@ -1,14 +1,17 @@
 """Analytic model derived by Bryan Barr"""
 from typing import Optional
 
+import inspect
 from nessai.livepoint import live_points_to_dict
 import numpy as np
 import dill
-import sympy
+from warnings import warn
+
 from .base import BaseModel, UniformPriorMixin
 
 try:
     from numba import jit
+    warn("Could not import numba", RuntimeWarning)
 except ImportError:
     def jit(*args, **kwargs):
         return lambda f: f
@@ -20,6 +23,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
     constant_parameters: dict
     """Dictionary of constant parameters"""
 
+    _model_parameters = None
+
     def __init__(
         self,
         x_data: np.ndarray,
@@ -27,19 +32,22 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         *,
         photodiode_gap: float,
         photodiode_size: float,
-        beam_radius: Optional[float] = None,
         x_offset: Optional[float] = None,
         sigma_noise: Optional[float] = None,
         prior_bounds: Optional[dict] = None,
+        a_scale: Optional[float] = None,
         rescale: bool = False,
         decay_constraint: bool = False,
+        amplitude_constraint: bool = False,
         n_terms: int = 3,
-        coefficients_filename: str = None
+        coefficients_filename: str = None,
+        **kwargs
     ) -> None:
         super().__init__(x_data, y_data)
 
         self.photodiode_gap = photodiode_gap
         self.photodiode_size = photodiode_size
+        self.amplitude_constraint = amplitude_constraint
         self.decay_constraint = decay_constraint
 
         if n_terms != 3:
@@ -49,26 +57,10 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         with open(terms_filename, "rb") as f:
             self.coefficients = dill.load(f, "rb")
 
-        """
-        equation_filename = f"General_equation_{n_terms}_Terms_object.txt"
-        with open(equation_filename, "r") as f:
-            equation = dill.load(f, "rb")
+        if rescale is True:
+           raise NotImplementedError
 
-        
-        t, B_1, B_2, w_1, w_2, x_0 = sympy.symbols('t B_1 B_2 w_1 w_2 x_0')
-        C_x = sympy.symbols('C_:%d' % n_terms + 1, real=True)
-
-        self.model_function = sympy.lambdify([B_1, B_2, w_1, w_2, x_0, C_x], equation)
-        """
-
-        #if rescale is True:
-        #    raise NotImplementedError
-
-        # Use the naming convention that Bryan used
-        self.constant_parameters = dict(
-            x_e=photodiode_size,
-            x_g=photodiode_gap,
-        )
+        self.constant_parameters = dict()
 
         bounds = {
             "a_1": [5e-6, 1e-2],
@@ -78,11 +70,6 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             "domega": [0.01, 0.5],
             "dphi": [0, 2 * np.pi],
         }
-
-        if beam_radius is None:
-            bounds["sigma_beam"] = [1e-3, 1e-2]
-        else:
-            self.constant_parameters["sigma_beam"] = beam_radius / 2.0
 
         if x_offset is None:
             bounds["x_offset"] = [-1e-3, 1e-3]
@@ -94,23 +81,36 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         else:
             self.constant_parameters["sigma_noise"] = sigma_noise
 
-        if prior_bounds:
-            if not all([key in bounds] for key in prior_bounds):
-                raise RuntimeError(
-                    "Prior bounds contains invalid keys!"
-                    f"Allowed keys are: {bounds.keys()}"
-                )
+        if a_scale is None:
+            bounds["a_scale"] = [1e-5, 10]
+        else:
+            self.constant_parameters["a_scale"] = a_scale
+
+        if prior_bounds is not None:
             bounds.update(prior_bounds)
+
+        for k, v in kwargs.items():
+            if k in self.model_parameters:
+                bounds.pop(k)
+                self.constant_parameters[k] = v
 
         self.names = list(bounds.keys())
         self.bounds = bounds
 
+    @property
+    def model_parameters(self) -> list[str]:
+        if self._model_parameters is None:
+            params = set(inspect.signature(signal_model).parameters.keys())
+            self._model_parameters = params - {"x_data"}
+        return self._model_parameters
+
     def evaluate_constraints(self, x):
         """Evaluate any prior constraints"""
-        out = np.zeros(x.size)
+        out = np.ones(x.size, dtype=bool)
         if self.decay_constraint:
-            #out += np.log(x["tau_1"] > x["tau_2"])
-            out += np.log(x["a_1"] > x["a_2"])
+            out &= (x["tau_1"] > x["tau_2"])
+        if self.amplitude_constraint:
+            out &= (x["a_1"] > x["a_2"])
         return out
 
     def log_prior(self, x):
@@ -118,7 +118,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         with np.errstate(divide="ignore"):
             return (
                 np.log(self.in_bounds(x), dtype="float")
-                + self.evaluate_constraints(x)
+                + np.log(self.evaluate_constraints(x), dtype="float")
                 - np.log(self.upper_bounds - self.lower_bounds).sum()
             )
 
@@ -127,7 +127,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         sigma_noise = x.pop("sigma_noise")
-        y_signal = np.sqrt(model_function(self.x_data, self.coefficients, **x))
+        y_signal = signal_model(self.x_data, self.coefficients, **x)
 
         norm_const = (
             -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
@@ -142,15 +142,40 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         x = live_points_to_dict(x, self.names)
         x.update(self.constant_parameters)
         x.pop("sigma_noise")
-        return np.sqrt(model_function(self.x_data, self.coefficients, **x))
+        return signal_model(self.x_data, self.coefficients, **x)
     
 
-def model_function(
-    time_vec: np.ndarray,
+def signal_model(
+    x_data: np.ndarray,
     Cterms: np.ndarray,
-    sigma_beam: float,
-    x_g: float,
-    x_e: float,
+    a_1: float,
+    a_2: float,
+    a_scale: float,
+    tau_1: float,
+    tau_2: float,
+    domega: float,
+    dphi: float,
+    x_offset: float,
+):
+    """Includes scaling and the square-root"""
+    return a_scale * np.sqrt(
+        model_function(
+            x_data,
+            Cterms,
+            a_1,
+            a_2,
+            tau_1,
+            tau_2,
+            domega,
+            dphi,
+            x_offset,
+        )
+    )
+
+    
+def model_function(
+    x_data: np.ndarray,
+    Cterms: np.ndarray,
     a_1: float,
     a_2: float,
     tau_1: float,
@@ -160,15 +185,17 @@ def model_function(
     x_offset: float,
 ):
     # Pre-calculate various elements
-    B1 = a_1 * np.exp(-time_vec/tau_1)
-    B2 = a_2 * np.exp(-time_vec/tau_2)
-    dw = 2*np.pi*time_vec*domega + dphi
+    B1 = a_1 * np.exp(-x_data/tau_1)
+    B2 = a_2 * np.exp(-x_data/tau_2)
+    dw = 2*np.pi*x_data*domega + dphi
     output = three_term_generic(B1, B2, dw, x_offset, Cterms)
     
     
     return output
 
-def three_term_generic(B_1, B_2, dw, x_0, _Dummy_36):
+
+@jit(nopython=True)
+def three_term_generic(B_1: float, B_2: float, dw: float, x_0: float, _Dummy_36: np.ndarray):
     """three term generic function
 
     Args:
