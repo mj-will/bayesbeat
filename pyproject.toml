@@ -18,8 +18,8 @@ dependencies = [
     "click",
     "hdf5storage",
     "nessai>=0.8",
-    "pycondor",
     "corner",
+    "dill",
 ]
 
 dynamic = ["version"]
@@ -27,6 +27,9 @@ dynamic = ["version"]
 [project.optional-dependencies]
 numba = [
     "numba",
+]
+condor = [
+    "pycondor",
 ]
 
 [project.scripts]
