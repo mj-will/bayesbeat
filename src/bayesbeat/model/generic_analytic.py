@@ -11,8 +11,9 @@ from .base import BaseModel, UniformPriorMixin
 
 try:
     from numba import jit
-    warn("Could not import numba", RuntimeWarning)
 except ImportError:
+    warn("Could not import numba", RuntimeWarning)
+
     def jit(*args, **kwargs):
         return lambda f: f
 
