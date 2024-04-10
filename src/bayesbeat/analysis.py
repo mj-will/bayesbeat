@@ -47,11 +47,10 @@ def run_nessai(
     if injection:
         logger.info(f"Creating injection with parameters: {injection_config}")
         injection_config = copy.deepcopy(injection_config)
-        x_data, y_data, signal, signal_model = simulate_data(
+        x_data, y_data, signal = simulate_data(
             injection_config.pop("model_name"),
             duration=injection_config.pop("duration"),
             sample_rate=injection_config.pop("sample_rate"),
-            sigma_noise=injection_config.pop("sigma_noise"),
             rescale_amplitude=rescale_amplitude,
             maximum_amplitude=maximum_amplitude,
             **injection_config,
