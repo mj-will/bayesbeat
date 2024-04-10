@@ -104,10 +104,10 @@ def run_nessai(
         logger.info("Producing plots")
 
         if injection_config:
-            truths = {k: v for k, v in injection_config.items() if k in model.names}
+            truths = {k: injection_config.get(k, np.nan) for k in model.names}
         else:
             truths = None
-        truths = None
+
         corner_plot(
             sampler.posterior_samples,
             include=model.names,
