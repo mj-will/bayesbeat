@@ -21,6 +21,9 @@ class BaseModel(Model):
     @abstractmethod
     def signal_model(self, x: np.ndarray) -> np.ndarray:
         raise NotImplementedError
+    
+    def signal_model_with_noise(self, x: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
 
 class UniformPriorMixin:
     """Mixin class that defines a uniform prior."""
