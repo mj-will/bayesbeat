@@ -207,7 +207,7 @@ class GaussianBeamModel(BaseModel):
             x["a_2"] = x["a_ratio"].item() * x["a_1"]
 
         if "f2" not in x:
-            x["f2"] = x["f1"] - (x["domega"] / np.pi)
+            x["f2"] = x["f1"] - (x["domega"] / (2 * np.pi))
         if "phi_2" not in x:
             x["phi_2"] = np.mod(x["phi_1"] + x["dphi"], 2 * np.pi)
         parameters = self.model_parameters
