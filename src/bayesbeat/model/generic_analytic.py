@@ -188,7 +188,7 @@ def model_function(
     # Pre-calculate various elements
     B1 = a_1 * np.exp(-x_data/tau_1)
     B2 = a_2 * np.exp(-x_data/tau_2)
-    dw = 2*np.pi*x_data*domega + dphi
+    dw = x_data * domega + dphi
     output = three_term_generic(B1, B2, dw, x_offset, Cterms)
     
     
