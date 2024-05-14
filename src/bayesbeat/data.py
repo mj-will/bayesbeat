@@ -8,6 +8,7 @@ from nessai.livepoint import dict_to_live_points
 import numpy as np
 
 from .model.utils import get_model_class
+from .utils import read_hdf5_to_dict
 
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,11 @@ def get_data(
     if not os.path.exists(filename):
         raise RuntimeError("Data file does not exist!")
 
-    matdata = hdf5storage.loadmat(filename)
+    try:
+        matdata = hdf5storage.loadmat(filename)
+    except ValueError:
+        matdata = read_hdf5_to_dict(filename)
+
     times = matdata["ring_times"].T
     amplitudes = matdata["ring_amps"].T
     freqs = matdata["freq"]
@@ -76,6 +81,12 @@ def get_data(
     times = times[keep]
     amplitudes = amplitudes[keep]
 
+    if "ring_amps_inj" in matdata:
+        signal = matdata["ring_amps_inj"].T[index]
+        signal = signal[keep]
+    else:
+        signal = None
+
     if maximum_amplitude:
         logger.info(f"Initial maximum amplitude: {amplitudes.max()}")
         start = np.flatnonzero(amplitudes > maximum_amplitude)[-1]
@@ -85,7 +96,25 @@ def get_data(
     if rescale_amplitude:
         amplitudes = amplitudes / amplitudes.max()
 
-    return times, amplitudes, freqs[index]
+    return times, amplitudes, freqs[index], signal
+
+
+def simulate_data_from_model(
+    model,
+    parameters: np.ndarray,
+    gaussian_noise: bool = True,
+    noise_scale: Optional[float] = None,
+):
+    if gaussian_noise:
+        y_signal = model.signal_model(parameters)
+        y_data = y_signal + noise_scale * np.random.randn(len(y_signal))
+    else:
+        try:
+            y_data = model.signal_model_with_noise(parameters, noise_scale=noise_scale)
+            y_signal = model.signal_model(parameters)
+        except NotImplementedError:
+            raise RuntimeError("model only supports Gaussian noise")
+    return y_data, y_signal
 
 
 def simulate_data(
@@ -132,15 +161,13 @@ def simulate_data(
     logger.info(
         f"Simulating signal with {ModelClass} model and parameters {parameters}"
     )
-    if gaussian_noise:
-        y_signal = model.signal_model(parameters)
-        y_data = y_signal + sigma_noise * np.random.randn(len(y_signal))
-    else:
-        try:
-            y_data = model.signal_model_with_noise(parameters, noise_scale=sigma_noise)
-            y_signal = model.signal_model(parameters)
-        except NotImplementedError:
-            raise RuntimeError("model only supports Gaussian noise")
+
+    y_data, y_signal = simulate_data_from_model(
+        model,
+        parameters,
+        gaussian_noise=gaussian_noise,
+        noise_scale=sigma_noise,
+    )
 
     if maximum_amplitude:
         logger.info(f"Initial maximum amplitude: {y_data.max()}")

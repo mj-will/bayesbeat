@@ -57,13 +57,12 @@ def run_nessai(
         )
         frequency = None
     else:
-        x_data, y_data, frequency = get_data(
+        x_data, y_data, frequency, signal = get_data(
             datafile,
             index,
             rescale_amplitude=rescale_amplitude,
             maximum_amplitude=maximum_amplitude,
         )
-        signal = None
 
     model = get_model(
         model_name,
