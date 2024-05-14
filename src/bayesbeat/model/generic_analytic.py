@@ -36,6 +36,8 @@ def read_function_from_sympy_file(equation_filename):
     -------
     Callable : 
         The lambdified function
+    set : 
+        The set of variables for the function.
     """
     from sympy import lambdify
     from sympy.parsing.sympy_parser import parse_expr
@@ -49,7 +51,8 @@ def read_function_from_sympy_file(equation_filename):
     variables = sorted(func.free_symbols, key=lambda s: s.name)
     logger.debug(f"Found the following variables: {variables}")
     func_lambdify = lambdify(variables, func)
-    return func_lambdify
+    variables_set = {v.name for v in variables}
+    return func_lambdify, variables_set
 
 
 class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
@@ -59,6 +62,9 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
     """Dictionary of constant parameters"""
 
     _model_parameters = None
+
+    required_variables = {"B_1", "B_2", "C_0", "C_1", "C_2", "C_3", "dw", "x_0"}
+    """Requires variables for the function"""
 
     def __init__(
         self,
@@ -91,8 +97,14 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             f"C_{i}": c for i, c in enumerate(coefficients)
         }
         
-        func = read_function_from_sympy_file(equation_filename)
+        func, variables = read_function_from_sympy_file(equation_filename)
         self.func = jit(func, nopython=True)
+
+        if variables != self.required_variables:
+            raise RuntimeError(
+                f"Sympy function contains unknown variables: {variables}. "
+                f"Required variables are: {self.required_variables}"
+            )
 
         if rescale is True:
             raise NotImplementedError
