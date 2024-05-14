@@ -5,13 +5,14 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def plot_data(
     x_data: np.ndarray,
     y_data: np.ndarray,
     signal: Optional[np.ndarray] = None,
     filename: Optional[str] = None,
 ) -> Union[Figure, None]:
-    
+
     fig = plt.figure()
     plt.plot(x_data, y_data, ls="-")
     if signal is not None:

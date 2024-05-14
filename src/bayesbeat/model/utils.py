@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 def get_model_class(name: str) -> Callable:
     from . import _MODELS
+
     ModelClass = _MODELS.get(name.lower())
     if ModelClass is None:
         raise ValueError(

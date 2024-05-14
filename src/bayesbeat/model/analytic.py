@@ -9,6 +9,7 @@ from .base import BaseModel, UniformPriorMixin
 try:
     from numba import jit
 except ImportError:
+
     def jit(*args, **kwargs):
         return lambda f: f
 
@@ -160,10 +161,7 @@ def cubed_taylor_expansion_reduced(
         ** 2
         * np.exp(-3 * time_vec / tau_1)
         * np.exp(-3 * time_vec / tau_2)
-        * np.cos(
-            3 * domega * time_vec
-            + 3 * dphi
-        )
+        * np.cos(3 * domega * time_vec + 3 * dphi)
         / 16
         + 9
         * a_1**2

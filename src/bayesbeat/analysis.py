@@ -77,7 +77,7 @@ def run_nessai(
             x_data,
             y_data,
             signal=signal,
-            filename=os.path.join(output, "data.png")
+            filename=os.path.join(output, "data.png"),
         )
 
     setup_logger(label=None, output=None, log_level=log_level)
@@ -113,9 +113,9 @@ def run_nessai(
             truths=truths,
         )
 
-        fit_params = dict_to_live_points({
-            n: np.median(sampler.posterior_samples[n]) for n in model.names
-        })
+        fit_params = dict_to_live_points(
+            {n: np.median(sampler.posterior_samples[n]) for n in model.names}
+        )
 
         fit = model.signal_model(fit_params)
 

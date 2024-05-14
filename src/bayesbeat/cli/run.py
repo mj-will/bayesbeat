@@ -35,8 +35,11 @@ def run(config, index, log_level, output):
     kwargs = {k: try_literal_eval(v) for k, v in config.items("Sampler")}
     logger.info(f"Sampler kwargs: {kwargs}")
 
-    injection=config.get("General", "injection")
-    injection_config = {k.replace("-", "_"): try_literal_eval(v) for k, v in config.items("Injection")}
+    injection = config.get("General", "injection")
+    injection_config = {
+        k.replace("-", "_"): try_literal_eval(v)
+        for k, v in config.items("Injection")
+    }
 
     run_nessai(
         datafile=config.get("General", "datafile"),

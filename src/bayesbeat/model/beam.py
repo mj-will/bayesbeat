@@ -17,6 +17,7 @@ class GaussianBeamModel(BaseModel):
     and gap between sensors.
 
     """
+
     _model_parameters = None
 
     def __init__(
@@ -65,11 +66,13 @@ class GaussianBeamModel(BaseModel):
         else:
             bounds = {"a_1": [1e-7, 5e-4], "a_2": [1e-7, 5e-4]}
 
-        bounds.update({
-            "tau_1": [10, 8000],
-            "tau_2": [10, 8000],
-            "dphi": [0, 2 * np.pi],
-        })
+        bounds.update(
+            {
+                "tau_1": [10, 8000],
+                "tau_2": [10, 8000],
+                "dphi": [0, 2 * np.pi],
+            }
+        )
 
         bounds["domega"] = [
             -1.0 if self.allow_negative_beat else 0.0,
@@ -162,11 +165,7 @@ class GaussianBeamModel(BaseModel):
                 red_samples_per_measurement,
                 # endpoint=False,
             )
-        times_full = (
-            torch.from_numpy(times_full)
-            .to(torch.float64)
-            .to(device)
-        )
+        times_full = torch.from_numpy(times_full).to(torch.float64).to(device)
         if y is not None:
             y = torch.from_numpy(y).to(device)
         return times_full, y
@@ -175,9 +174,9 @@ class GaussianBeamModel(BaseModel):
         """Evaluate any prior constraints"""
         out = np.ones(x.size, dtype=bool)
         if self.decay_constraint:
-            out &= (x["tau_1"] > x["tau_2"])
+            out &= x["tau_1"] > x["tau_2"]
         if self.amplitude_constraint:
-            out &= (x["a_1"] > x["a_2"])
+            out &= x["a_1"] > x["a_2"]
         return out
 
     def log_prior(self, x):
@@ -191,7 +190,7 @@ class GaussianBeamModel(BaseModel):
                 + np.log(self.evaluate_constraints(x), dtype="float")
                 - np.log(self.upper_bounds - self.lower_bounds).sum()
             )
-        
+
     def from_unit_hypercube(self, x):
         x_out = x.copy()
         for n in self.names:
@@ -199,8 +198,10 @@ class GaussianBeamModel(BaseModel):
                 n
             ] + self.bounds[n][0]
         return x_out
-    
-    def convert_to_model_parameters(self, x: dict, noise: bool = False) -> dict:
+
+    def convert_to_model_parameters(
+        self, x: dict, noise: bool = False
+    ) -> dict:
         if self.rescale:
             x["a_2"] = 1 - x["a_1"]
         elif self.use_ratio:
@@ -215,7 +216,7 @@ class GaussianBeamModel(BaseModel):
             parameters += {"noise"}
         y = {k: x[k] for k in parameters if k in x}
         return y
-    
+
     def signal_model(self, x):
         """Return the signal for a given point"""
         x = live_points_to_dict(x)
@@ -245,7 +246,7 @@ class GaussianBeamModel(BaseModel):
                         self.y_data,
                         self.n_samples,
                         sigma_noise=x["sigma_noise"],
-                        **x_model
+                        **x_model,
                     )
                 )
                 .cpu()
@@ -297,12 +298,12 @@ def int_from_disp(
     photodiode_sum:
     photodiode_diff:
     """
-    photodiode_left = gaussian_cdf(edges, loc=-1 * d, scale=omega / 2) - gaussian_cdf(
-        gap, loc=-1 * d, scale=omega / 2
-    )
-    photodiode_right = gaussian_cdf(edges, loc=1 * d, scale=omega / 2) - gaussian_cdf(
-        gap, loc=1 * d, scale=omega / 2
-    )
+    photodiode_left = gaussian_cdf(
+        edges, loc=-1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=-1 * d, scale=omega / 2)
+    photodiode_right = gaussian_cdf(
+        edges, loc=1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=1 * d, scale=omega / 2)
     return photodiode_right - photodiode_left
 
 
@@ -399,19 +400,19 @@ def int_from_disp_with_noise(
     photodiode_sum:
     photodiode_diff:
     """
-    photodiode_left = gaussian_cdf(edges, loc=-1 * d, scale=omega / 2) - gaussian_cdf(
-        gap, loc=-1 * d, scale=omega / 2
-    )
-    photodiode_right = gaussian_cdf(edges, loc=1 * d, scale=omega / 2) - gaussian_cdf(
-        gap, loc=1 * d, scale=omega / 2
-    )
+    photodiode_left = gaussian_cdf(
+        edges, loc=-1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=-1 * d, scale=omega / 2)
+    photodiode_right = gaussian_cdf(
+        edges, loc=1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=1 * d, scale=omega / 2)
     rin = rin_scale * torch.randn_like(photodiode_right)
 
     photodiode_left = photodiode_left * (1 + rin)
     photodiode_right = photodiode_right * (1 + rin)
 
-
     return photodiode_right - photodiode_left
+
 
 def signal_model_with_noise(
     x_data: torch.Tensor,
@@ -427,13 +428,19 @@ def signal_model_with_noise(
     tau_2: float,
     x_offset: float,
     beam_radius: float,
-    noise_scale: float
+    noise_scale: float,
 ) -> torch.Tensor:
     """get the model for the peaks"""
     y_1 = decaying_sine(x_data, a_1, f1, phi_1, tau_1)
     y_2 = decaying_sine(x_data, a_2, f2, phi_2, tau_2)
     disp = y_1 + y_2 + x_offset
-    Diff = int_from_disp_with_noise(disp, photodiode_gap, photodiode_size, beam_radius, rin_scale=noise_scale)
+    Diff = int_from_disp_with_noise(
+        disp,
+        photodiode_gap,
+        photodiode_size,
+        beam_radius,
+        rin_scale=noise_scale,
+    )
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
     return peaks_total

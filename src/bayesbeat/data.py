@@ -56,6 +56,7 @@ def get_data(
         If an index is not specified.
     """
     import hdf5storage
+
     if index is None:
         raise ValueError("Must specify index")
 
@@ -110,7 +111,9 @@ def simulate_data_from_model(
         y_data = y_signal + noise_scale * np.random.randn(len(y_signal))
     else:
         try:
-            y_data = model.signal_model_with_noise(parameters, noise_scale=noise_scale)
+            y_data = model.signal_model_with_noise(
+                parameters, noise_scale=noise_scale
+            )
             y_signal = model.signal_model(parameters)
         except NotImplementedError:
             raise RuntimeError("model only supports Gaussian noise")
@@ -126,10 +129,10 @@ def simulate_data(
     rescale_amplitude: Optional[float] = None,
     gaussian_noise: bool = True,
     zero_noise: bool = False,
-    **kwargs
+    **kwargs,
 ):
     """
-    
+
     Parameters
     ----------
     sample_rate
@@ -143,7 +146,7 @@ def simulate_data(
 
     sig = inspect.signature(ModelClass)
     allowed_kwargs = sig.parameters.keys()
-    
+
     if zero_noise:
         sigma_noise = 0.0
 
@@ -156,7 +159,9 @@ def simulate_data(
     model = ModelClass(x_data=times, y_data=None, **model_kwargs)
 
     if isinstance(parameters, dict):
-        parameters = dict_to_live_points(parameters, non_sampling_parameters=False)
+        parameters = dict_to_live_points(
+            parameters, non_sampling_parameters=False
+        )
 
     logger.info(
         f"Simulating signal with {ModelClass} model and parameters {parameters}"

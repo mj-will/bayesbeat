@@ -7,8 +7,7 @@ import numpy.lib.recfunctions as rfn
 
 
 def generate_all_parameters(
-    samples: np.ndarray,
-    frequency: Optional[float] = None
+    samples: np.ndarray, frequency: Optional[float] = None
 ) -> np.ndarray:
     existing = samples.dtype.names
     new = {}
