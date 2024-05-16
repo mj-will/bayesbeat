@@ -82,6 +82,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         amplitude_constraint: bool = False,
         equation_filename: str = None,
         coefficients_filename: str = None,
+        rin_noise: bool = False,
         **kwargs
     ) -> None:
         super().__init__(x_data, y_data)
@@ -90,6 +91,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         self.photodiode_size = photodiode_size
         self.amplitude_constraint = amplitude_constraint
         self.decay_constraint = decay_constraint
+        self.rin_noise = rin_noise
 
         with open(coefficients_filename, "rb") as f:
             coefficients = dill.load(f, "rb")
@@ -181,8 +183,12 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         norm_const = (
             -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
         )
+        if self.rin_noise:
+            res = (self.y_data - y_signal) / y_signal
+        else:
+            res = (self.y_data - y_signal)
         logl = norm_const + np.sum(
-            -0.5 * ((self.y_data - y_signal) ** 2 / (sigma_noise**2)),
+            -0.5 * (res ** 2 / (sigma_noise**2)),
             axis=-1,
         )
         return logl

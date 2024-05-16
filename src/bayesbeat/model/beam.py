@@ -40,6 +40,7 @@ class GaussianBeamModel(BaseModel):
         rescale: bool = False,
         use_ratio: bool = False,
         reduce_factor: float = 0.1,
+        rin_noise: bool = False,
         device: str = "cpu",
         **kwargs,
     ):
@@ -49,6 +50,7 @@ class GaussianBeamModel(BaseModel):
         self.allow_positive_beat = allow_positive_beat
         self.allow_negative_beat = allow_negative_beat
         self.vectorised_likelihood = False
+        self.rin_noise = rin_noise
 
         self.constant_parameters = dict(
             f1=2000.0,
@@ -101,9 +103,11 @@ class GaussianBeamModel(BaseModel):
             bounds.update(prior_bounds)
 
         for k, v in kwargs.items():
-            if k in self.model_parameters:
+            if k in self.valid_parameters:
                 bounds.pop(k)
                 self.constant_parameters[k] = v
+            else:
+                raise RuntimeError(f"Invalid input: {k}={v}")
 
         self.names = list(bounds.keys())
         self.bounds = bounds
@@ -136,6 +140,11 @@ class GaussianBeamModel(BaseModel):
             params = set(inspect.signature(signal_model).parameters.keys())
             self._model_parameters = params - {"x_data"}
         return self._model_parameters
+    
+    @property
+    def valid_parameters(self):
+        additional = {"dphi", "domega"}
+        return self.model_parameters.union(additional)
 
     def prep_data(
         self,
@@ -210,7 +219,7 @@ class GaussianBeamModel(BaseModel):
         if "f2" not in x:
             x["f2"] = x["f1"] - (x["domega"] / (2 * np.pi))
         if "phi_2" not in x:
-            x["phi_2"] = np.mod(x["phi_1"] + x["dphi"], 2 * np.pi)
+            x["phi_2"] = np.mod(x["phi_1"] - x["dphi"], 2 * np.pi)
         parameters = self.model_parameters
         if noise:
             parameters += {"noise"}
@@ -246,6 +255,7 @@ class GaussianBeamModel(BaseModel):
                         self.y_data,
                         self.n_samples,
                         sigma_noise=x["sigma_noise"],
+                        rin_noise=self.rin_noise,
                         **x_model,
                     )
                 )
@@ -350,6 +360,7 @@ def log_likelihood(
     tau_2: float,
     x_offset: float,
     beam_radius: float,
+    rin_noise: bool,
 ) -> torch.Tensor:
     norm_const = -0.5 * n_samples * math.log(2 * math.pi * sigma_noise**2)
     y_signal = signal_model(
@@ -367,8 +378,12 @@ def log_likelihood(
         x_offset,
         beam_radius,
     )
+    if rin_noise:
+        res = (y_data - y_signal) / y_signal
+    else:
+        res = y_data - y_signal
     return norm_const + torch.sum(
-        -0.5 * ((y_data - y_signal) ** 2 / (sigma_noise**2)),
+        -0.5 * ((res ** 2) / (sigma_noise**2)),
         dtype=y_data.dtype,
     )
 
