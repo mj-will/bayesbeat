@@ -39,6 +39,7 @@ bayesbeat_base_config = "bayesbeat.cli.config:base_config"
 bayesbeat_create_ini = "bayesbeat.cli.config:create_ini"
 bayesbeat_generate_injections = "bayesbeat.cli.generate:generate_injections"
 bayesbeat_plot_data = "bayesbeat.cli.plot:plot_data"
+bayesbeat_plot_posterior = "bayesbeat.cli.plot:plot_posterior"
 
 [tool.setuptools_scm]
 
