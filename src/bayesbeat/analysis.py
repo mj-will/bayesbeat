@@ -119,7 +119,13 @@ def run_nessai(
 
         fit = model.signal_model(fit_params)
 
-        plot_fit(x_data, y_data, fit, filename=os.path.join(output, "fit.png"))
+        plot_fit(
+            x_data,
+            y_data,
+            fit,
+            rin_noise=model_config.get("rin_noise", False),
+            filename=os.path.join(output, "fit.png")
+        )
 
     samples = generate_all_parameters(
         sampler.posterior_samples, frequency=frequency
