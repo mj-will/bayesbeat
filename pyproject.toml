@@ -31,6 +31,9 @@ numba = [
 condor = [
     "pycondor",
 ]
+slurm = [
+    "simple-slurm",
+]
 
 [project.scripts]
 bayesbeat_run = "bayesbeat.cli.run:run"

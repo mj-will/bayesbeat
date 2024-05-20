@@ -16,7 +16,13 @@ logger = logging.getLogger(__name__)
 
 def get_n_entries(filename: str) -> int:
     """Get the number of entries in a datafile"""
-    data = hdf5storage.loadmat(filename)
+    import hdf5storage
+
+    try:
+        data = hdf5storage.loadmat(filename)
+    except ValueError:
+        data = read_hdf5_to_dict(filename)
+
     return len(data["ring_times"].T)
 
 

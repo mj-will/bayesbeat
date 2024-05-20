@@ -1,4 +1,3 @@
-from ast import literal_eval
 import configparser
 import importlib.resources as pkg_resources
 import logging
