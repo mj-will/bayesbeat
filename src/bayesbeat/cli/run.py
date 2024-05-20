@@ -1,4 +1,5 @@
 """Command line interface to run nessai"""
+import copy
 import os
 import shutil
 
@@ -21,6 +22,7 @@ def run(config, index, n_pool, log_level, output):
     """Run an analysis from a config file for a given index"""
     logger = configure_logger(log_level=log_level)
 
+    orig_config_file = copy.copy(config)
     config_file = os.path.split(config)[1]
     config = read_config(config)
 
@@ -28,7 +30,8 @@ def run(config, index, n_pool, log_level, output):
         output = config.get("General", "output")
 
     output = os.path.join(output, "") 
-    shutil.copyfile(config, os.path.join(output, config_file))
+    os.makedirs(output, exist_ok=True)
+    shutil.copyfile(orig_config_file, os.path.join(output, config_file))
 
     model_name = config["Model"].pop("name")
     model_config = {
