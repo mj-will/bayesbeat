@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 def convert_to_dw(expression):
     """Convert the expression to use dw instead of w_1 - w_2"""
     expression = expression.replace("w_1 - w_2", "dw")
-    expression = expression.replace("2*w_1 - 2*w_2", "2*dw")
-    expression = expression.replace("3*w_1 - 3*w_2", "3*dw")
+    for i in range(1, 8):
+        expression = expression.replace(f"{i}*w_1 - {i}*w_2", f"{i}*dw")
     return expression
 
 
@@ -52,7 +52,10 @@ def read_function_from_sympy_file(equation_filename):
     logger.debug(f"Found the following variables: {variables}")
     func_lambdify = lambdify(variables, func)
     variables_set = {v.name for v in variables}
-    return func_lambdify, variables_set
+    n_terms = max(
+        [int(v.split("_")[1]) for v in variables_set if v.startswith("C_")]
+    )
+    return func_lambdify, variables_set, n_terms
 
 
 class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
@@ -63,7 +66,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
     _model_parameters = None
 
-    required_variables = {"B_1", "B_2", "C_0", "C_1", "C_2", "C_3", "dw", "x_0"}
+    required_variables = {"B_1", "B_2", "dw", "x_0"}
     """Requires variables for the function"""
 
     def __init__(
@@ -99,13 +102,19 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             f"C_{i}": c for i, c in enumerate(coefficients)
         }
         
-        func, variables = read_function_from_sympy_file(equation_filename)
+        func, variables, n_terms = read_function_from_sympy_file(equation_filename)
         self.func = jit(func, nopython=True)
 
-        if variables != self.required_variables:
+        if variables != self.required_variables.union(self.coefficients):
             raise RuntimeError(
                 f"Sympy function contains unknown variables: {variables}. "
                 f"Required variables are: {self.required_variables}"
+            )
+        
+        if not len(coefficients) != n_terms:
+            raise RuntimeError(
+                "Number of terms in expression and coefficients file are "
+                "inconsistent."
             )
 
         if rescale is True:
