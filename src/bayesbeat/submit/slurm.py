@@ -55,12 +55,12 @@ def build_slurm_submit(config_file: str, overwrite: bool = False):
 
     slurm.add_cmd(
         exe,
-        f"{complete_config_file} "
+        complete_config_file, 
         f"--index {Slurm.SLURM_ARRAY_TASK_ID}"
     )
 
     with open(submit_file, "w") as f:
-        f.write(str(slurm))
+        f.write(slurm.script(convert=False))
 
     logger.info(f"Wrote submit file to {submit_file}")
 
