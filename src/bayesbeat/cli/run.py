@@ -1,5 +1,6 @@
 """Command line interface to run nessai"""
-from ast import literal_eval
+import os
+import shutil
 
 import click
 
@@ -11,18 +12,23 @@ from ..utils import configure_logger, try_literal_eval
 @click.command()
 @click.argument("config", type=click.Path(exists=True))
 @click.option("--index", type=int, help="Index to analyse.")
+@click.option("--n-pool", type=int, default=None)
 @click.option("--log-level", type=str, help="Logging level.", default="INFO")
 @click.option(
     "--output", type=str, help="Output directory that overrides the config"
 )
-def run(config, index, log_level, output):
+def run(config, index, n_pool, log_level, output):
     """Run an analysis from a config file for a given index"""
     logger = configure_logger(log_level=log_level)
 
+    config_file = os.path.split(config)[1]
     config = read_config(config)
 
     if output is None:
         output = config.get("General", "output")
+
+    output = os.path.join(output, "") 
+    shutil.copyfile(config, os.path.join(output, config_file))
 
     model_name = config["Model"].pop("name")
     model_config = {
@@ -41,13 +47,15 @@ def run(config, index, log_level, output):
         for k, v in config.items("Injection")
     }
 
+    n_pool = config.get("Analysis", "n-pool") if n_pool is None else n_pool
+
     run_nessai(
         datafile=config.get("General", "datafile"),
         index=index,
         output=output,
         rescale_amplitude=config.get("Data", "rescale-amplitude"),
         maximum_amplitude=config.get("Data", "maximum-amplitude"),
-        n_pool=config.get("Analysis", "n-pool"),
+        n_pool=n_pool,
         seed=config.get("General", "seed"),
         resume=config.get("Analysis", "resume"),
         log_level=log_level,
