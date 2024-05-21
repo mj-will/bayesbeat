@@ -31,7 +31,11 @@ def run(config, index, n_pool, log_level, output):
 
     output = os.path.join(output, "") 
     os.makedirs(output, exist_ok=True)
-    shutil.copyfile(orig_config_file, os.path.join(output, config_file))
+
+    try:
+        shutil.copyfile(orig_config_file, os.path.join(output, config_file))
+    except shutil.SameFileError:
+        logger.warning("ini file already exists!")
 
     model_name = config["Model"].pop("name")
     model_config = {
