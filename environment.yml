@@ -10,4 +10,11 @@ dependencies:
   - nessai
   - pycondor
   - hdf5storage
+  - h5py
   - corner
+  - dill
+  - simple_slurm
+  - numba
+  - click
+  - seaborn
+  - sympy

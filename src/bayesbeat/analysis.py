@@ -47,24 +47,22 @@ def run_nessai(
     if injection:
         logger.info(f"Creating injection with parameters: {injection_config}")
         injection_config = copy.deepcopy(injection_config)
-        x_data, y_data, signal, signal_model = simulate_data(
+        x_data, y_data, signal = simulate_data(
             injection_config.pop("model_name"),
             duration=injection_config.pop("duration"),
             sample_rate=injection_config.pop("sample_rate"),
-            sigma_noise=injection_config.pop("sigma_noise"),
             rescale_amplitude=rescale_amplitude,
             maximum_amplitude=maximum_amplitude,
             **injection_config,
         )
         frequency = None
     else:
-        x_data, y_data, frequency = get_data(
+        x_data, y_data, frequency, signal = get_data(
             datafile,
             index,
             rescale_amplitude=rescale_amplitude,
             maximum_amplitude=maximum_amplitude,
         )
-        signal = None
 
     model = get_model(
         model_name,
@@ -79,7 +77,7 @@ def run_nessai(
             x_data,
             y_data,
             signal=signal,
-            filename=os.path.join(output, "data.png")
+            filename=os.path.join(output, "data.png"),
         )
 
     setup_logger(label=None, output=None, log_level=log_level)
@@ -104,7 +102,7 @@ def run_nessai(
         logger.info("Producing plots")
 
         if injection_config:
-            truths = {k: v for k, v in injection_config.items() if k in model.names}
+            truths = {k: injection_config.get(k, np.nan) for k in model.names}
         else:
             truths = None
 
@@ -115,13 +113,19 @@ def run_nessai(
             truths=truths,
         )
 
-        fit_params = dict_to_live_points({
-            n: np.median(sampler.posterior_samples[n]) for n in model.names
-        })
+        fit_params = dict_to_live_points(
+            {n: np.median(sampler.posterior_samples[n]) for n in model.names}
+        )
 
         fit = model.signal_model(fit_params)
 
-        plot_fit(x_data, y_data, fit, filename=os.path.join(output, "fit.png"))
+        plot_fit(
+            x_data,
+            y_data,
+            fit,
+            rin_noise=model_config.get("rin_noise", False),
+            filename=os.path.join(output, "fit.png")
+        )
 
     samples = generate_all_parameters(
         sampler.posterior_samples, frequency=frequency

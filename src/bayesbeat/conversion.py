@@ -7,8 +7,7 @@ import numpy.lib.recfunctions as rfn
 
 
 def generate_all_parameters(
-    samples: np.ndarray,
-    frequency: Optional[float] = None
+    samples: np.ndarray, frequency: Optional[float] = None
 ) -> np.ndarray:
     existing = samples.dtype.names
     new = {}
@@ -19,7 +18,7 @@ def generate_all_parameters(
             new["a_2"] = 1 - samples["a_1"]
 
     if frequency is not None:
-        if "phi_1" not in existing:
+        if "phi_1" not in existing and "tau_1" in existing:
             new["phi_1"] = 1 / (samples["tau_1"] * np.pi * frequency)
             new["phi_2"] = 1 / (samples["tau_2"] * np.pi * frequency)
 

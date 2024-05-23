@@ -1,6 +1,9 @@
 import logging
+import inspect
 import math
+from typing import Optional
 
+from nessai.livepoint import live_points_to_dict
 import numpy as np
 import torch
 
@@ -15,6 +18,8 @@ class GaussianBeamModel(BaseModel):
 
     """
 
+    _model_parameters = None
+
     def __init__(
         self,
         x_data,
@@ -22,14 +27,22 @@ class GaussianBeamModel(BaseModel):
         *,
         photodiode_gap: float,
         photodiode_size: float,
-        sample_rate: float,
+        pre_fft_sample_rate: float,
         samples_per_measurement: int,
         allow_positive_beat: bool = True,
         allow_negative_beat: bool = False,
+        beam_radius: Optional[float] = None,
+        x_offset: Optional[float] = None,
+        sigma_noise: Optional[float] = None,
+        prior_bounds: Optional[dict] = None,
+        decay_constraint: bool = False,
+        amplitude_constraint: bool = False,
         rescale: bool = False,
         use_ratio: bool = False,
         reduce_factor: float = 0.1,
+        rin_noise: bool = False,
         device: str = "cpu",
+        **kwargs,
     ):
         # define param names as list
         self.rescale = rescale
@@ -37,67 +50,79 @@ class GaussianBeamModel(BaseModel):
         self.allow_positive_beat = allow_positive_beat
         self.allow_negative_beat = allow_negative_beat
         self.vectorised_likelihood = False
+        self.rin_noise = rin_noise
+
+        self.constant_parameters = dict(
+            f1=2000.0,
+            phi_1=0.0,
+            photodiode_gap=photodiode_gap,
+            photodiode_size=photodiode_size,
+        )
 
         if self.rescale:
-            names = ["a_1"]
             bounds = {
-                "a_1": (0.5, 1),
+                "a_1": [0.5, 1],
             }
         elif self.use_ratio:
-            names = ["a_1", "a_ratio"]
-            bounds = {"a_1": (1e-7, 5e-4), "a_ratio": (0.1, 1)}
+            bounds = {"a_1": [1e-7, 5e-4], "a_ratio": [0.1, 1]}
         else:
-            names = ["a_1", "a_2"]
-            bounds = {"a_1": (1e-7, 5e-4), "a_2": (1e-7, 5e-4)}
+            bounds = {"a_1": [1e-7, 5e-4], "a_2": [1e-7, 5e-4]}
 
-        names += [
-            "dw",
-            "dp",
-            "tau_1",
-            "tau_2",
-            # "x_offset",
-            "beam_radius",
-            "sigma",
-        ]
+        bounds.update(
+            {
+                "tau_1": [10, 8000],
+                "tau_2": [10, 8000],
+                "dphi": [0, 2 * np.pi],
+            }
+        )
 
-        bounds["dw"] = [
+        bounds["domega"] = [
             -1.0 if self.allow_negative_beat else 0.0,
             1.0 if self.allow_positive_beat else 0.0,
         ]
 
-        if bounds["dw"][0] == bounds["dw"][1]:
+        if bounds["domega"][0] == bounds["domega"][1]:
             raise RuntimeError("Invalid beat prior")
 
-        bounds["dp"] = [0, 2 * np.pi]
+        if beam_radius is None:
+            bounds["beam_radius"] = [1e-3, 1e-2]
+        else:
+            self.constant_parameters["beam_radius"] = beam_radius
 
-        other_bounds = {
-            # "f1": tuple(np.array([5e2, 40e3]) * reduce_factor),
-            # "phi_1": (0, 2 * np.pi),
-            "tau_1": (10, 8000),
-            "tau_2": (10, 8000),
-            # "x_offset": (-0.005, 0.005),  # offset in m
-            "beam_radius": (0.0005, 0.005),  # beam radius in m
-            "sigma": (0, 50),
-        }
+        if x_offset is None:
+            bounds["x_offset"] = [-1e-3, 1e-3]
+        else:
+            self.constant_parameters["x_offset"] = x_offset
+
+        if sigma_noise is None:
+            bounds["sigma_noise"] = [1e-5, 1.0]
+        else:
+            self.constant_parameters["sigma_noise"] = sigma_noise
+
+        if prior_bounds is not None:
+            bounds.update(prior_bounds)
+
+        for k, v in kwargs.items():
+            if k in self.valid_parameters:
+                bounds.pop(k)
+                self.constant_parameters[k] = v
+            else:
+                raise RuntimeError(f"Invalid input: {k}={v}")
+
+        self.names = list(bounds.keys())
+        self.bounds = bounds
+
+        self.sample_rate = pre_fft_sample_rate
+        self.samples_per_measurement = samples_per_measurement
+        self.reduce_factor = reduce_factor
+        self.decay_constraint = decay_constraint
+        self.amplitude_constraint = amplitude_constraint
 
         self.device = device
-        self.f1 = 2000
-        self.phi_1 = 0.0
-
         if self.device == "cpu":
             logger.warning(
                 "Running likelihood with CPU, sampling may be very slow!"
             )
-
-        self.photodiode_gap = photodiode_gap
-        self.photodiode_size = photodiode_size
-        self.x_offset = 0.0
-        self.names = names
-        self.bounds = bounds | other_bounds
-
-        self.sample_rate = sample_rate
-        self.samples_per_measurement = samples_per_measurement
-        self.reduce_factor = reduce_factor
 
         x_data, y_data = self.prep_data(
             x_data,
@@ -108,6 +133,18 @@ class GaussianBeamModel(BaseModel):
             self.device,
         )
         super().__init__(x_data, y_data)
+
+    @property
+    def model_parameters(self) -> list[str]:
+        if self._model_parameters is None:
+            params = set(inspect.signature(signal_model).parameters.keys())
+            self._model_parameters = params - {"x_data"}
+        return self._model_parameters
+    
+    @property
+    def valid_parameters(self):
+        additional = {"dphi", "domega"}
+        return self.model_parameters.union(additional)
 
     def prep_data(
         self,
@@ -137,70 +174,79 @@ class GaussianBeamModel(BaseModel):
                 red_samples_per_measurement,
                 # endpoint=False,
             )
-        times_full = (
-            torch.from_numpy(times_full)
-            .to(torch.get_default_dtype())
-            .to(device)
-        )
-        y = torch.from_numpy(y).to(device)
+        times_full = torch.from_numpy(times_full).to(torch.float64).to(device)
+        if y is not None:
+            y = torch.from_numpy(y).to(device)
         return times_full, y
+
+    def evaluate_constraints(self, x):
+        """Evaluate any prior constraints"""
+        out = np.ones(x.size, dtype=bool)
+        if self.decay_constraint:
+            out &= x["tau_1"] > x["tau_2"]
+        if self.amplitude_constraint:
+            out &= x["a_1"] > x["a_2"]
+        return out
 
     def log_prior(self, x):
         """
         Returns log of prior given a live point assuming uniform
         priors on each parameter.
         """
-        log_p = np.log(self.in_bounds(x), dtype="float")
+        with np.errstate(divide="ignore"):
+            return (
+                np.log(self.in_bounds(x), dtype="float")
+                + np.log(self.evaluate_constraints(x), dtype="float")
+                - np.log(self.upper_bounds - self.lower_bounds).sum()
+            )
+
+    def from_unit_hypercube(self, x):
+        x_out = x.copy()
         for n in self.names:
-            log_p -= np.log(self.bounds[n][1] - self.bounds[n][0])
-        return log_p
+            x_out[n] = (self.bounds[n][1] - self.bounds[n][0]) * x[
+                n
+            ] + self.bounds[n][0]
+        return x_out
+
+    def convert_to_model_parameters(
+        self, x: dict, noise: bool = False
+    ) -> dict:
+        if self.rescale:
+            x["a_2"] = 1 - x["a_1"]
+        elif self.use_ratio:
+            x["a_2"] = x["a_ratio"].item() * x["a_1"]
+
+        if "f2" not in x:
+            x["f2"] = x["f1"] - (x["domega"] / (2 * np.pi))
+        if "phi_2" not in x:
+            x["phi_2"] = np.mod(x["phi_1"] - x["dphi"], 2 * np.pi)
+        parameters = self.model_parameters
+        if noise:
+            parameters += {"noise"}
+        y = {k: x[k] for k in parameters if k in x}
+        return y
 
     def signal_model(self, x):
         """Return the signal for a given point"""
-        a_1 = x["a_1"].item()
-        if self.rescale:
-            a_2 = 1 - a_1
-        elif self.use_ratio:
-            a_2 = x["a_ratio"].item() * a_1
-        else:
-            a_2 = x["a_2"]
-
-        f2 = x["f1"] + x["df"]
-        phi_2 = np.mod(self.phi_1 + x["dp"], 2 * np.pi)
-
+        x = live_points_to_dict(x)
+        x.update(self.constant_parameters)
+        x = self.convert_to_model_parameters(x)
         with torch.inference_mode():
-            return (
-                (
-                    signal_model(
-                        self.x_data,
-                        self.photodiode_gap,
-                        self.photodiode_size,
-                        a_1,
-                        x["f1"],
-                        self.phi_1,
-                        x["tau_1"],
-                        a_2,
-                        f2,
-                        phi_2,
-                        x["tau_2"],
-                        self.x_offset,  # x["x_offset"],
-                        x["beam_radius"],
-                    )
-                )
-                .cpu()
-                .numpy()
-            )
+            return signal_model(self.x_data, **x).cpu().numpy()
+
+    def signal_model_with_noise(self, x, noise_scale):
+        """Return the signal for a given point"""
+        x = live_points_to_dict(x)
+        x.update(self.constant_parameters)
+        x = self.convert_to_model_parameters(x)
+        x["noise_scale"] = noise_scale
+        with torch.inference_mode():
+            return signal_model_with_noise(self.x_data, **x).cpu().numpy()
 
     def log_likelihood(self, x):
-        a_1 = x["a_1"].item()
-        if self.rescale:
-            a_2 = 1 - a_1
-        elif self.use_ratio:
-            a_2 = x["a_ratio"].item() * a_1
-        else:
-            a_2 = x["a_2"]
-        f2 = self.f1 - (x["dw"] / np.pi)
-        phi_2 = np.mod(self.phi_1 + x["dp"], 2 * np.pi)
+        x = live_points_to_dict(x)
+        x.update(self.constant_parameters)
+        x_model = self.convert_to_model_parameters(x)
         with torch.inference_mode():
             logl = (
                 (
@@ -208,19 +254,9 @@ class GaussianBeamModel(BaseModel):
                         self.x_data,
                         self.y_data,
                         self.n_samples,
-                        self.photodiode_gap,
-                        self.photodiode_size,
-                        a_1,
-                        self.f1,
-                        self.phi_1,
-                        x["tau_1"],
-                        a_2,
-                        f2,
-                        phi_2,
-                        x["tau_2"],
-                        self.x_offset,  # x["x_offset"],
-                        x["beam_radius"],
-                        x["sigma"],
+                        sigma_noise=x["sigma_noise"],
+                        rin_noise=self.rin_noise,
+                        **x_model,
                     )
                 )
                 .cpu()
@@ -253,7 +289,7 @@ def int_from_disp(
     d: torch.Tensor, gap: float, edges: float, omega: float
 ) -> torch.Tensor:
     """
-    Compute the signal in both halveds of the photodiode with a given offset of d
+    Compute the signal in both halves of the photodiode with a given offset of d
     Args
     -------
     d:
@@ -272,16 +308,15 @@ def int_from_disp(
     photodiode_sum:
     photodiode_diff:
     """
-    photodiode_left = gaussian_cdf(edges, loc=-1 * d, scale=omega / 2) - gaussian_cdf(
-        gap, loc=-1 * d, scale=omega / 2
-    )
-    photodiode_right = gaussian_cdf(edges, loc=1 * d, scale=omega / 2) - gaussian_cdf(
-        gap, loc=1 * d, scale=omega / 2
-    )
+    photodiode_left = gaussian_cdf(
+        edges, loc=-1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=-1 * d, scale=omega / 2)
+    photodiode_right = gaussian_cdf(
+        edges, loc=1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=1 * d, scale=omega / 2)
     return photodiode_right - photodiode_left
 
 
-@torch.jit.script
 def signal_model(
     x_data: torch.Tensor,
     photodiode_gap: float,
@@ -298,11 +333,9 @@ def signal_model(
     beam_radius: float,
 ) -> torch.Tensor:
     """get the model for the peaks"""
-    disp = (
-        decaying_sine(x_data, a_1, f1, phi_1, tau_1)
-        + decaying_sine(x_data, a_2, f2, phi_2, tau_2)
-        + x_offset
-    )
+    y_1 = decaying_sine(x_data, a_1, f1, phi_1, tau_1)
+    y_2 = decaying_sine(x_data, a_2, f2, phi_2, tau_2)
+    disp = y_1 + y_2 + x_offset
     Diff = int_from_disp(disp, photodiode_gap, photodiode_size, beam_radius)
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
@@ -314,6 +347,7 @@ def log_likelihood(
     x_data: torch.Tensor,
     y_data: torch.Tensor,
     n_samples: int,
+    sigma_noise: float,
     photodiode_gap: float,
     photodiode_size: float,
     a_1: float,
@@ -326,9 +360,9 @@ def log_likelihood(
     tau_2: float,
     x_offset: float,
     beam_radius: float,
-    sigma: float,
+    rin_noise: bool,
 ) -> torch.Tensor:
-    norm_const = -0.5 * n_samples * math.log(2 * math.pi * sigma**2)
+    norm_const = -0.5 * n_samples * math.log(2 * math.pi * sigma_noise**2)
     y_signal = signal_model(
         x_data,
         photodiode_gap,
@@ -344,7 +378,84 @@ def log_likelihood(
         x_offset,
         beam_radius,
     )
+    if rin_noise:
+        res = (y_data - y_signal) / y_signal
+    else:
+        res = y_data - y_signal
     return norm_const + torch.sum(
-        -0.5 * ((y_data - y_signal) ** 2 / (sigma**2)),
+        -0.5 * ((res ** 2) / (sigma_noise**2)),
         dtype=y_data.dtype,
     )
+
+
+def int_from_disp_with_noise(
+    d: torch.Tensor,
+    gap: float,
+    edges: float,
+    omega: float,
+    rin_scale: float,
+) -> torch.Tensor:
+    """
+    Compute the signal in both halves of the photodiode with a given offset of d
+    Args
+    -------
+    d:
+        offset of the beam
+    gap: float
+        size of the gap between photodiodes
+    edges: float
+
+    omega: float
+        beam size
+
+    returns
+    ---------
+    photodiode_left:
+    photodiode_right:
+    photodiode_sum:
+    photodiode_diff:
+    """
+    photodiode_left = gaussian_cdf(
+        edges, loc=-1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=-1 * d, scale=omega / 2)
+    photodiode_right = gaussian_cdf(
+        edges, loc=1 * d, scale=omega / 2
+    ) - gaussian_cdf(gap, loc=1 * d, scale=omega / 2)
+    rin = rin_scale * torch.randn_like(photodiode_right)
+
+    photodiode_left = photodiode_left * (1 + rin)
+    photodiode_right = photodiode_right * (1 + rin)
+
+    return photodiode_right - photodiode_left
+
+
+def signal_model_with_noise(
+    x_data: torch.Tensor,
+    photodiode_gap: float,
+    photodiode_size: float,
+    a_1: float,
+    f1: float,
+    phi_1: float,
+    tau_1: float,
+    a_2: float,
+    f2: float,
+    phi_2: float,
+    tau_2: float,
+    x_offset: float,
+    beam_radius: float,
+    noise_scale: float,
+) -> torch.Tensor:
+    """get the model for the peaks"""
+    y_1 = decaying_sine(x_data, a_1, f1, phi_1, tau_1)
+    y_2 = decaying_sine(x_data, a_2, f2, phi_2, tau_2)
+    disp = y_1 + y_2 + x_offset
+    Diff = int_from_disp_with_noise(
+        disp,
+        photodiode_gap,
+        photodiode_size,
+        beam_radius,
+        rin_scale=noise_scale,
+    )
+    Difft = torch.fft.rfft(Diff, dim=1)
+    peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
+    return peaks_total

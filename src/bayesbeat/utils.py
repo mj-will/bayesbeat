@@ -105,3 +105,18 @@ def time_likelihood(model: BaseModel, n: int = 100) -> float:
         _ = model.log_likelihood(xx)
     end = time.perf_counter()
     return (end - start) / n
+
+
+def read_hdf5_to_dict(file_path):
+    import h5py
+
+    data_dict = {}
+    with h5py.File(file_path, "r") as f:
+
+        def visitor_func(name, obj):
+            if isinstance(obj, h5py.Dataset):
+                data_dict[name] = obj[()]
+
+        f.visititems(visitor_func)
+
+    return data_dict

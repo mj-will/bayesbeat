@@ -5,7 +5,7 @@ import shutil
 
 from pycondor import Dagman, Job
 
-from .config import read_config
+from ..config import read_config
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 def build_dag(config_file: str) -> Dagman:
     """Get the DAG"""
     config = read_config(config_file)
+
     output = config.get("General", "output")
     label = config.get("General", "label")
 
@@ -30,7 +31,7 @@ def build_dag(config_file: str) -> Dagman:
 
     indices = config.get("General", "indices")
     if indices is None or indices == "all":
-        from .data import get_n_entries
+        from ..data import get_n_entries
 
         indices = list(range(get_n_entries(config.get("General", "datafile"))))
         logger.info(

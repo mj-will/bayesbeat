@@ -18,8 +18,8 @@ dependencies = [
     "click",
     "hdf5storage",
     "nessai>=0.8",
-    "pycondor",
     "corner",
+    "dill",
 ]
 
 dynamic = ["version"]
@@ -28,12 +28,22 @@ dynamic = ["version"]
 numba = [
     "numba",
 ]
+condor = [
+    "pycondor",
+]
+slurm = [
+    "simple-slurm",
+]
 
 [project.scripts]
 bayesbeat_run = "bayesbeat.cli.run:run"
 bayesbeat_build = "bayesbeat.cli.build:build"
 bayesbeat_base_config = "bayesbeat.cli.config:base_config"
 bayesbeat_create_ini = "bayesbeat.cli.config:create_ini"
+bayesbeat_generate_injections = "bayesbeat.cli.generate:generate_injections"
+bayesbeat_plot_data = "bayesbeat.cli.plot:plot_data"
+bayesbeat_plot_posterior = "bayesbeat.cli.plot:plot_posterior"
+bayesbeat_plot_fit = "bayesbeat.cli.plot:plot_fit"
 
 [tool.setuptools_scm]
 

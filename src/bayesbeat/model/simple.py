@@ -20,7 +20,14 @@ def sigmodel(a_1, a_2, tau_1, tau_2, phi_1, dphi, domega, x):
 def signal_from_dict(d, x_data):
     """Get the signal from a dictionary of parameters and some data."""
     return sigmodel(
-        d["a_1"], d["a_2"], d["tau_1"], d["tau_2"], d["phi_1"], d["dphi"], d["domega"], x_data
+        d["a_1"],
+        d["a_2"],
+        d["tau_1"],
+        d["tau_2"],
+        d["phi_1"],
+        d["dphi"],
+        d["domega"],
+        x_data,
     )
 
 

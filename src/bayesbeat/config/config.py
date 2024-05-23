@@ -1,4 +1,3 @@
-from ast import literal_eval
 import configparser
 import importlib.resources as pkg_resources
 import logging
@@ -13,10 +12,21 @@ class BayesBeatConfigParser(configparser.ConfigParser):
 
     default_config = pkg_resources.files("bayesbeat.config") / "default.ini"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, scheduler=None, **kwargs):
         super().__init__(*args, **kwargs)
         logger.debug(f"Loading default config from: {self.default_config}")
         self.read(self.default_config)
+        if scheduler is not None:
+            if scheduler.lower() in ["htcondor", "condor"]:
+                self.read(
+                    pkg_resources.files("bayesbeat.config") / "htcondor.ini"
+                )
+            elif  scheduler.lower() in ["slurm"]:
+                self.read(
+                    pkg_resources.files("bayesbeat.config") / "slurm.ini"
+                )
+            else:
+                raise ValueError(f"Unknown schedular: {scheduler}")
 
     def get(self, section, option, **kwargs):
         return try_literal_eval(super().get(section, option, **kwargs))

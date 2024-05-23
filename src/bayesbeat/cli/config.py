@@ -27,13 +27,24 @@ def base_config(filename):
 @click.option(
     "--label", type=str, default=None, help="Label for the analysis."
 )
-def create_ini(filename, output, datafile, label):
+@click.option(
+    "--scheduler",
+    default=None,
+    type=str,
+    help=(
+        """
+        Name of the scheduler to use. If not specified, a scheduler section
+        will not be added to the ini file.
+        """
+    ),
+)
+def create_ini(filename, output, datafile, label, scheduler):
     """Create a default ini file with a given filename.
 
     Allows for some settings in the ini file to be set directly from the command
     line.
     """
-    config = BayesBeatConfigParser()
+    config = BayesBeatConfigParser(scheduler=scheduler)
     if output is not None:
         config.set("General", "output", output)
     if datafile is not None:
