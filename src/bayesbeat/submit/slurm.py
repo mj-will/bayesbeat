@@ -56,7 +56,9 @@ def build_slurm_submit(config_file: str, overwrite: bool = False):
     slurm.add_cmd(
         exe,
         complete_config_file, 
-        f"--index {Slurm.SLURM_ARRAY_TASK_ID}"
+        f"--index {Slurm.SLURM_ARRAY_TASK_ID}",
+        f"--n-pool {Slurm.SLURM_CPUS_PER_TASK}",
+        f"--output {os.path.join(output, "analysis", f"index_{Slurm.SLURM_ARRAY_TASK_ID}", "")}",
     )
 
     with open(submit_file, "w") as f:
