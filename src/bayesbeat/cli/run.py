@@ -14,6 +14,7 @@ from ..utils import configure_logger, try_literal_eval
 @click.argument("config", type=click.Path(exists=True))
 @click.option("--index", type=int, help="Index to analyse.")
 @click.option("--n-pool", type=int, default=None)
+@click.option("--output", type=str, default=None)
 @click.option("--log-level", type=str, help="Logging level.", default="INFO")
 @click.option(
     "--output", type=str, help="Output directory that overrides the config"
