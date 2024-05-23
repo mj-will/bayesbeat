@@ -122,9 +122,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         if equation_name:
             equation_filename = get_included_function_filename(equation_name)
 
-        func, variables, self.n_terms = read_function_from_sympy_file(
-            equation_filename
-        )
+        func, variables, _ = read_function_from_sympy_file(equation_filename)
         self.func = jit(func, nopython=True)
 
         if variables != self.required_variables.union(self.coefficients):
@@ -133,10 +131,10 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 f"Required variables are: {self.required_variables}"
             )
 
-        if not len(self.coefficients) != (self.n_terms + 1):
+        if len(self.coefficients) != (self.n_terms + 1):
             raise RuntimeError(
                 "Number of terms in expression and coefficients file are "
-                "inconsistent. (n terms + 1 == n coefficients)"
+                "inconsistent (require n terms + 1 == n coefficients)."
             )
 
         if rescale is True:
