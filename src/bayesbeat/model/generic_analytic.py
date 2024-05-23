@@ -156,6 +156,10 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
         self.names = list(bounds.keys())
         self.bounds = bounds
+        self.log_prior_constant = - np.log(
+            self.upper_bounds - self.lower_bounds
+        ).sum()
+
 
     @property
     def model_parameters(self) -> list[str]:
@@ -179,14 +183,22 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             return (
                 np.log(self.in_bounds(x), dtype="float")
                 + np.log(self.evaluate_constraints(x), dtype="float")
-                - np.log(self.upper_bounds - self.lower_bounds).sum()
+                + self.log_prior_constant
             )
+
+    def convert_to_model_parameters(
+        self, x: dict
+    ) -> dict:
+        x.update(self.constant_parameters)
+        y = {k: x[k] for k in self.model_parameters if k in x}
+        return y
 
     def log_likelihood(self, x) -> np.ndarray:
         """Compute the log-likelihood"""
         x = live_points_to_dict(x, self.names)
-        x.update(self.constant_parameters)
         sigma_noise = x.pop("sigma_noise")
+        x = self.convert_to_model_parameters(x)
+
         y_signal = self.model_function(**x)
 
         norm_const = (
@@ -196,6 +208,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             res = (self.y_data - y_signal) / y_signal
         else:
             res = (self.y_data - y_signal)
+
         logl = norm_const + np.sum(
             -0.5 * (res ** 2 / (sigma_noise**2)),
             axis=-1,
@@ -204,8 +217,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
     def signal_model(self, x: np.ndarray) -> np.ndarray:
         x = live_points_to_dict(x, self.names)
-        x.update(self.constant_parameters)
-        x.pop("sigma_noise")
+        x = self.convert_to_model_parameters(x)
         return self.model_function(**x)
     
     def model_function(
