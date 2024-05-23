@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 included_function_files = {
     f"General_Equation_{i}_Terms": pkg_resources.files("bayesbeat.equations")
     / f"General_Equation_{i}_Terms.txt"
-    for i in range(7)
+    for i in range(8)
 }
 
 
