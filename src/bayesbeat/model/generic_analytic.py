@@ -58,11 +58,11 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         rescale: bool = False,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
-        equation_name: str = None,
+        equation_name: Optional[str] = None,
         equation_filename: str = None,
         coefficients_filename: str = None,
         n_terms: Optional[int] = None,
-        rin_noise: bool = False,
+        rin_noise: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(x_data, y_data)
