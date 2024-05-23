@@ -84,7 +84,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             self.coefficients = {
                 f"C_{i}": c for i, c in enumerate(coefficients)
             }
-            if self.n_terms is not None and self.n_terms != len(
+            if self.n_terms is not None and (self.n_terms + 1) != len(
                 self.coefficients
             ):
                 raise ValueError(
@@ -99,8 +99,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 )
             if include_gap:
                 self.coefficients = compute_coefficients_with_gap(
-                    x_g=self.photodiode_gap,
-                    sigma=self.beam_radius,
+                    photodiode_gap=self.photodiode_gap,
+                    beam_radius=self.beam_radius,
                     n_terms=n_terms,
                 )
             else:
@@ -117,10 +117,13 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             raise RuntimeError(
                 "Specify either `equation_name` or `equation_filename`"
             )
+
         if equation_name:
             equation_filename = get_included_function_filename(equation_name)
 
-        func, variables, self.n_terms = get_function(equation_filename)
+        func, variables, self.n_terms = read_function_from_sympy_file(
+            equation_filename
+        )
         self.func = jit(func, nopython=True)
 
         if variables != self.required_variables.union(self.coefficients):
@@ -129,10 +132,10 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 f"Required variables are: {self.required_variables}"
             )
 
-        if not len(coefficients) != n_terms:
+        if not len(self.coefficients) != (n_terms + 1):
             raise RuntimeError(
                 "Number of terms in expression and coefficients file are "
-                "inconsistent."
+                "inconsistent. (n terms + 1 == n coefficients)"
             )
 
         if rescale is True:
