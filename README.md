@@ -6,7 +6,7 @@ Bayesian analysis of ringdowns.
 
 ## Downloading the code
 
-The recommended way to download the code is by cloning this repository. 
+The recommended way to download the code is by cloning this repository.
 
 Alternatively, you can download the code as a Zip from [this URL](https://github.com/mj-will/bayesbeat/archive/refs/heads/main.zip).
 
@@ -90,11 +90,12 @@ maximum-amplitude = None
 
 [Model]
 name = GenericAnalyticGaussianBeam
+equation_name = General_Equation_3_Terms.txt
 photodiode-size = 1e-2
 photodiode-gap = 0.25e-3
-equation_filename = ../../equation_3_files/General_Equation_3_Terms_Symbolic_Correct01.txt
-coefficients_filename = ../../equation_3_files/C_coefficients_Simple_erf_model_3_Terms.txt
-sample-rate = 1.0
+n-terms = 3
+include-gap = True
+beam_radius = 1e-3
 x_offset = 0.0
 rin_noise = True
 prior_bounds = {"a_ratio": [0, 1], "tau_1": [290, 310], "tau_2": [140, 160], "dphi": [0, 3.141592654], "domega": [0.18, 0.22], "a_scale": [0, 10], "sigma_noise": [0, 10.0]}
@@ -154,4 +155,3 @@ where `--index` specifies which ringdown in the datafile to analyse.
 **Note:** this ignores the value of `indices` in the ini file.
 
 **Note:** it is not possible to analyse multiple ringdowns with a single call to `bayesbeat_run`.
-
