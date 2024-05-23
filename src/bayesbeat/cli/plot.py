@@ -2,6 +2,7 @@ import click
 from nessai.plot import corner_plot
 import numpy as np
 import os
+import seaborn as sns
 
 from ..config import read_config
 from ..data import get_data
@@ -69,7 +70,8 @@ def plot_posterior(result_file, filename, injection_file, injection_index, log_l
 @click.option("--filename", type=str)
 @click.option("--plot-type", type=str, default="median")
 @click.option("--log-level", type=str, help="Logging level.", default="INFO")
-def plot_fit(config, result_file, filename, datafile, index, log_level, plot_type):
+@click.option("--residual-interval", type=int, default=None)
+def plot_fit(config, result_file, filename, datafile, index, log_level, plot_type, residual_interval):
     import h5py
     import matplotlib.pyplot as plt
     from nessai.livepoint import dict_to_live_points
@@ -130,10 +132,31 @@ def plot_fit(config, result_file, filename, datafile, index, log_level, plot_typ
         signal = model.signal_model(fit_params)
         axs["fit"].plot(x_data, signal, color="C1", label="Fit")
         res = (y_data - signal) / signal
-        axs["res"].scatter(x_data, res, s=2)
+        axs["res"].scatter(x_data, res, s=2, color="grey")
 
-        axs["dist"].hist(res, density=True, bins=32, orientation="horizontal")
-        # axs["dist"].set_yscale("log")
+
+        if residual_interval is not None:
+            n_intervals = len(x_data) // residual_interval - 1
+            colours = sns.color_palette(n_colors=n_intervals)
+            for i, c in enumerate(colours):
+                axs["dist"].hist(
+                    res[i * residual_interval : (i + 1) * residual_interval],
+                    density=True,
+                    bins=int(np.sqrt(residual_interval)),
+                    orientation="horizontal",
+                    histtype="step",
+                    color=c,
+                )
+                axs["res"].axvline(x_data[(i + 1) * residual_interval], c=c, ls=":")
+
+        axs["dist"].hist(
+            res,
+            density=True,
+            bins=32,
+            orientation="horizontal",
+            color="k",
+            histtype="step",
+        )
         
     axs["fit"].set_ylabel("Amplitude")
     axs["fit"].legend()
