@@ -1,4 +1,5 @@
 """Tests for the create ini CLI"""
+
 from click.testing import CliRunner
 
 from bayesbeat.cli.config import create_ini
