@@ -120,7 +120,9 @@ def simulate_data_from_model(
             y_data = model.signal_model_with_noise(
                 parameters, noise_scale=noise_scale
             )
-            y_signal = model.signal_model_with_noise(parameters, noise_scale=0.0)
+            y_signal = model.signal_model_with_noise(
+                parameters, noise_scale=0.0
+            )
         except NotImplementedError:
             raise RuntimeError("model only supports Gaussian noise")
     return y_data, y_signal

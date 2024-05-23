@@ -10,6 +10,7 @@ from ..model.utils import get_model
 from ..plot import plot_data as plot_data_func
 from ..utils import configure_logger, try_literal_eval
 
+
 @click.command()
 @click.argument("datafile", type=click.Path(exists=True))
 @click.option("--index", type=int, help="Index to analyse.")
@@ -28,14 +29,15 @@ def plot_data(datafile, index, log_level, filename):
     logger.info(f"Saved plot to {filename}")
 
 
-
 @click.command()
 @click.argument("result_file", type=click.Path(exists=True))
 @click.option("--filename", type=str)
 @click.option("--injection-file", type=str)
 @click.option("--injection-index", type=int, help="Index to analyse.")
 @click.option("--log-level", type=str, help="Logging level.", default="INFO")
-def plot_posterior(result_file, filename, injection_file, injection_index, log_level):
+def plot_posterior(
+    result_file, filename, injection_file, injection_index, log_level
+):
     import h5py
 
     logger = configure_logger(log_level=log_level)
@@ -60,7 +62,7 @@ def plot_posterior(result_file, filename, injection_file, injection_index, log_l
         truths=truths,
         filename=filename,
     )
-    
+
 
 @click.command()
 @click.option("--config", type=click.Path(exists=True))
@@ -71,7 +73,16 @@ def plot_posterior(result_file, filename, injection_file, injection_index, log_l
 @click.option("--plot-type", type=str, default="median")
 @click.option("--log-level", type=str, help="Logging level.", default="INFO")
 @click.option("--residual-interval", type=int, default=None)
-def plot_fit(config, result_file, filename, datafile, index, log_level, plot_type, residual_interval):
+def plot_fit(
+    config,
+    result_file,
+    filename,
+    datafile,
+    index,
+    log_level,
+    plot_type,
+    residual_interval,
+):
     import h5py
     import matplotlib.pyplot as plt
     from nessai.livepoint import dict_to_live_points
@@ -104,7 +115,6 @@ def plot_fit(config, result_file, filename, datafile, index, log_level, plot_typ
         rescale=False,
     )
 
-
     logger.info("Producing plot")
 
     directory = os.path.split(filename)[0]
@@ -134,7 +144,6 @@ def plot_fit(config, result_file, filename, datafile, index, log_level, plot_typ
         res = (y_data - signal) / signal
         axs["res"].scatter(x_data, res, s=2, color="grey")
 
-
         if residual_interval is not None:
             n_intervals = len(x_data) // residual_interval - 1
             colours = sns.color_palette(n_colors=n_intervals)
@@ -147,7 +156,9 @@ def plot_fit(config, result_file, filename, datafile, index, log_level, plot_typ
                     histtype="step",
                     color=c,
                 )
-                axs["res"].axvline(x_data[(i + 1) * residual_interval], c=c, ls=":")
+                axs["res"].axvline(
+                    x_data[(i + 1) * residual_interval], c=c, ls=":"
+                )
 
         axs["dist"].hist(
             res,
@@ -157,14 +168,14 @@ def plot_fit(config, result_file, filename, datafile, index, log_level, plot_typ
             color="k",
             histtype="step",
         )
-        
+
     axs["fit"].set_ylabel("Amplitude")
     axs["fit"].legend()
     axs["res"].set_ylabel("Residuals")
     axs["res"].set_xlabel("Time [s]")
 
     axs["empty"].axis("off")
-    
+
     fig.savefig(filename)
-    
+
     logger.info(f"Saved plot to {filename}")

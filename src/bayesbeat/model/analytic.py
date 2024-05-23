@@ -1,4 +1,5 @@
 """Analytic model derived by Bryan Barr"""
+
 from typing import Optional
 
 from nessai.livepoint import live_points_to_dict
@@ -107,9 +108,7 @@ class AnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         sigma_noise = x.pop("sigma_noise")
         y_signal = np.sqrt(cubed_taylor_expansion_reduced(self.x_data, **x))
 
-        norm_const = (
-            -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
-        )
+        norm_const = -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
         logl = norm_const + np.sum(
             -0.5 * ((self.y_data - y_signal) ** 2 / (sigma_noise**2)),
             axis=-1,
@@ -178,22 +177,14 @@ def cubed_taylor_expansion_reduced(
             a_1
             * (
                 np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_g**2
-                / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_e**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                - np.sqrt(2) * x_g**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2) * x_e**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_1)
             + (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * (
                 3 * a_1**3 * np.exp(-3 * time_vec / tau_1) / 4
@@ -213,22 +204,14 @@ def cubed_taylor_expansion_reduced(
             a_2
             * (
                 np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_g**2
-                / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_e**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                - np.sqrt(2) * x_g**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2) * x_e**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_2)
             + (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * (
                 3
@@ -251,9 +234,7 @@ def cubed_taylor_expansion_reduced(
             * (
                 a_2
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -266,9 +247,7 @@ def cubed_taylor_expansion_reduced(
                 )
                 * np.exp(-time_vec / tau_2)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -287,9 +266,7 @@ def cubed_taylor_expansion_reduced(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-2 * time_vec / tau_1)
             * np.exp(-time_vec / tau_2)
@@ -300,9 +277,7 @@ def cubed_taylor_expansion_reduced(
             * (
                 a_1
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -315,9 +290,7 @@ def cubed_taylor_expansion_reduced(
                 )
                 * np.exp(-time_vec / tau_1)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -336,9 +309,7 @@ def cubed_taylor_expansion_reduced(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_1)
             * np.exp(-2 * time_vec / tau_2)
@@ -352,9 +323,7 @@ def cubed_taylor_expansion_reduced(
             * (
                 a_1
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -367,9 +336,7 @@ def cubed_taylor_expansion_reduced(
                 )
                 * np.exp(-time_vec / tau_1)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -388,9 +355,7 @@ def cubed_taylor_expansion_reduced(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-2 * time_vec / tau_1)
             * np.exp(-time_vec / tau_2)
@@ -401,9 +366,7 @@ def cubed_taylor_expansion_reduced(
             * (
                 a_2
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -416,9 +379,7 @@ def cubed_taylor_expansion_reduced(
                 )
                 * np.exp(-time_vec / tau_2)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -437,9 +398,7 @@ def cubed_taylor_expansion_reduced(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_1)
             * np.exp(-2 * time_vec / tau_2)
@@ -447,9 +406,7 @@ def cubed_taylor_expansion_reduced(
             + (
                 a_1
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -462,9 +419,7 @@ def cubed_taylor_expansion_reduced(
                 )
                 * np.exp(-time_vec / tau_1)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -484,9 +439,7 @@ def cubed_taylor_expansion_reduced(
             * (
                 a_2
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -499,9 +452,7 @@ def cubed_taylor_expansion_reduced(
                 )
                 * np.exp(-time_vec / tau_2)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -583,22 +534,14 @@ def cubed_taylor_expansion(
             a_1
             * (
                 np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_g**2
-                / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_e**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                - np.sqrt(2) * x_g**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2) * x_e**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_1)
             + (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * (
                 3 * a_1**3 * np.exp(-3 * time_vec / tau_1) / 4
@@ -618,22 +561,14 @@ def cubed_taylor_expansion(
             a_2
             * (
                 np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_g**2
-                / (2 * np.sqrt(np.pi) * sigma_beam**3)
-                - np.sqrt(2)
-                * x_e**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**4
-                / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                - np.sqrt(2) * x_g**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                - np.sqrt(2) * x_e**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**4 / (8 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_2)
             + (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * (
                 3
@@ -656,9 +591,7 @@ def cubed_taylor_expansion(
             * (
                 a_2
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -671,9 +604,7 @@ def cubed_taylor_expansion(
                 )
                 * np.exp(-time_vec / tau_2)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -692,9 +623,7 @@ def cubed_taylor_expansion(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-2 * time_vec / tau_1)
             * np.exp(-time_vec / tau_2)
@@ -705,9 +634,7 @@ def cubed_taylor_expansion(
             * (
                 a_1
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -720,9 +647,7 @@ def cubed_taylor_expansion(
                 )
                 * np.exp(-time_vec / tau_1)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -741,9 +666,7 @@ def cubed_taylor_expansion(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_1)
             * np.exp(-2 * time_vec / tau_2)
@@ -762,9 +685,7 @@ def cubed_taylor_expansion(
             * (
                 a_1
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -777,9 +698,7 @@ def cubed_taylor_expansion(
                 )
                 * np.exp(-time_vec / tau_1)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -798,9 +717,7 @@ def cubed_taylor_expansion(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-2 * time_vec / tau_1)
             * np.exp(-time_vec / tau_2)
@@ -811,9 +728,7 @@ def cubed_taylor_expansion(
             * (
                 a_2
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -826,9 +741,7 @@ def cubed_taylor_expansion(
                 )
                 * np.exp(-time_vec / tau_2)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -847,9 +760,7 @@ def cubed_taylor_expansion(
             )
             * (
                 -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
-                + np.sqrt(2)
-                * x_g**2
-                / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                + np.sqrt(2) * x_g**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
             )
             * np.exp(-time_vec / tau_1)
             * np.exp(-2 * time_vec / tau_2)
@@ -857,9 +768,7 @@ def cubed_taylor_expansion(
             + (
                 a_1
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -872,9 +781,7 @@ def cubed_taylor_expansion(
                 )
                 * np.exp(-time_vec / tau_1)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)
@@ -894,9 +801,7 @@ def cubed_taylor_expansion(
             * (
                 a_2
                 * (
-                    np.sqrt(2)
-                    * x_e**2
-                    / (2 * np.sqrt(np.pi) * sigma_beam**3)
+                    np.sqrt(2) * x_e**2 / (2 * np.sqrt(np.pi) * sigma_beam**3)
                     - np.sqrt(2)
                     * x_g**2
                     / (2 * np.sqrt(np.pi) * sigma_beam**3)
@@ -909,9 +814,7 @@ def cubed_taylor_expansion(
                 )
                 * np.exp(-time_vec / tau_2)
                 + (
-                    -np.sqrt(2)
-                    * x_e**2
-                    / (4 * np.sqrt(np.pi) * sigma_beam**5)
+                    -np.sqrt(2) * x_e**2 / (4 * np.sqrt(np.pi) * sigma_beam**5)
                     + np.sqrt(2)
                     * x_g**2
                     / (4 * np.sqrt(np.pi) * sigma_beam**5)

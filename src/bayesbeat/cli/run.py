@@ -1,4 +1,5 @@
 """Command line interface to run nessai"""
+
 import copy
 import os
 import shutil
@@ -30,7 +31,7 @@ def run(config, index, n_pool, log_level, output):
     if output is None:
         output = config.get("General", "output")
 
-    output = os.path.join(output, "") 
+    output = os.path.join(output, "")
     os.makedirs(output, exist_ok=True)
 
     try:

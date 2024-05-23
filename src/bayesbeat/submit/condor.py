@@ -1,4 +1,5 @@
 """Handle generating and submitting condor jobs"""
+
 import logging
 import os
 import shutil

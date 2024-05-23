@@ -1,4 +1,5 @@
 """Results"""
+
 import os
 
 from nessai import config as nessai_config

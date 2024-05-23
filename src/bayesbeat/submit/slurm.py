@@ -8,6 +8,7 @@ from ..config import read_config
 
 logger = logging.getLogger(__name__)
 
+
 def build_slurm_submit(config_file: str, overwrite: bool = False):
     config = read_config(config_file)
 
@@ -40,9 +41,13 @@ def build_slurm_submit(config_file: str, overwrite: bool = False):
     slurm = Slurm(
         array=indices,
         job_name=f"bayesbeat_{label}",
-        output=os.path.join(log_dir, f"{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out"),
-        error=os.path.join(log_dir, f"{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.err"),
-        **slurm_args
+        output=os.path.join(
+            log_dir, f"{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out"
+        ),
+        error=os.path.join(
+            log_dir, f"{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.err"
+        ),
+        **slurm_args,
     )
 
     slurm.add_cmd("module purge")
@@ -55,10 +60,10 @@ def build_slurm_submit(config_file: str, overwrite: bool = False):
 
     slurm.add_cmd(
         exe,
-        complete_config_file, 
+        complete_config_file,
         f"--index {Slurm.SLURM_ARRAY_TASK_ID}",
         f"--n-pool {Slurm.SLURM_CPUS_PER_TASK}",
-        f"--output {os.path.join(output, "analysis", f"index_{Slurm.SLURM_ARRAY_TASK_ID}", "")}",
+        f"--output {os.path.join(output, 'analysis', f'index_{Slurm.SLURM_ARRAY_TASK_ID}', '')}",
     )
 
     with open(submit_file, "w") as f:

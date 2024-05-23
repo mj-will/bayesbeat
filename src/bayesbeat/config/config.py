@@ -21,7 +21,7 @@ class BayesBeatConfigParser(configparser.ConfigParser):
                 self.read(
                     pkg_resources.files("bayesbeat.config") / "htcondor.ini"
                 )
-            elif  scheduler.lower() in ["slurm"]:
+            elif scheduler.lower() in ["slurm"]:
                 self.read(
                     pkg_resources.files("bayesbeat.config") / "slurm.ini"
                 )

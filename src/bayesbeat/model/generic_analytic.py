@@ -1,4 +1,5 @@
 """Analytic model derived by Bryan Barr"""
+
 import logging
 from typing import Optional
 
@@ -17,7 +18,8 @@ except ImportError:
 
     def jit(*args, **kwargs):
         return lambda f: f
-    
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,12 +33,12 @@ def convert_to_dw(expression):
 
 def read_function_from_sympy_file(equation_filename):
     """Read a function from a txt file using sympy.
-    
+
     Returns
     -------
-    Callable : 
+    Callable :
         The lambdified function
-    set : 
+    set :
         The set of variables for the function.
     """
     from sympy import lambdify
@@ -86,7 +88,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         equation_filename: str = None,
         coefficients_filename: str = None,
         rin_noise: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(x_data, y_data)
 
@@ -98,11 +100,11 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
         with open(coefficients_filename, "rb") as f:
             coefficients = dill.load(f, "rb")
-        self.coefficients = {
-            f"C_{i}": c for i, c in enumerate(coefficients)
-        }
-        
-        func, variables, n_terms = read_function_from_sympy_file(equation_filename)
+        self.coefficients = {f"C_{i}": c for i, c in enumerate(coefficients)}
+
+        func, variables, n_terms = read_function_from_sympy_file(
+            equation_filename
+        )
         self.func = jit(func, nopython=True)
 
         if variables != self.required_variables.union(self.coefficients):
@@ -110,7 +112,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 f"Sympy function contains unknown variables: {variables}. "
                 f"Required variables are: {self.required_variables}"
             )
-        
+
         if not len(coefficients) != n_terms:
             raise RuntimeError(
                 "Number of terms in expression and coefficients file are "
@@ -156,15 +158,16 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
         self.names = list(bounds.keys())
         self.bounds = bounds
-        self.log_prior_constant = - np.log(
+        self.log_prior_constant = -np.log(
             self.upper_bounds - self.lower_bounds
         ).sum()
-
 
     @property
     def model_parameters(self) -> list[str]:
         if self._model_parameters is None:
-            params = set(inspect.signature(self.model_function).parameters.keys())
+            params = set(
+                inspect.signature(self.model_function).parameters.keys()
+            )
             self._model_parameters = params
         return self._model_parameters
 
@@ -186,9 +189,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 + self.log_prior_constant
             )
 
-    def convert_to_model_parameters(
-        self, x: dict
-    ) -> dict:
+    def convert_to_model_parameters(self, x: dict) -> dict:
         x.update(self.constant_parameters)
         y = {k: x[k] for k in self.model_parameters if k in x}
         return y
@@ -201,16 +202,14 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
         y_signal = self.model_function(**x)
 
-        norm_const = (
-            -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
-        )
+        norm_const = -0.5 * self.n_samples * np.log(2 * np.pi * sigma_noise**2)
         if self.rin_noise:
             res = (self.y_data - y_signal) / y_signal
         else:
-            res = (self.y_data - y_signal)
+            res = self.y_data - y_signal
 
         logl = norm_const + np.sum(
-            -0.5 * (res ** 2 / (sigma_noise**2)),
+            -0.5 * (res**2 / (sigma_noise**2)),
             axis=-1,
         )
         return logl
@@ -219,7 +218,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         x = live_points_to_dict(x, self.names)
         x = self.convert_to_model_parameters(x)
         return self.model_function(**x)
-    
+
     def model_function(
         self,
         a_1: float,

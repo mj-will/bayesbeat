@@ -1,4 +1,5 @@
 """Plotting functions"""
+
 from typing import Optional, Union
 
 from matplotlib.figure import Figure
