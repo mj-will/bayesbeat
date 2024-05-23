@@ -1,4 +1,5 @@
 """Analysis functions"""
+
 import copy
 import logging
 import os
@@ -124,7 +125,7 @@ def run_nessai(
             y_data,
             fit,
             rin_noise=model_config.get("rin_noise", False),
-            filename=os.path.join(output, "fit.png")
+            filename=os.path.join(output, "fit.png"),
         )
 
     samples = generate_all_parameters(

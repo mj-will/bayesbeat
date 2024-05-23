@@ -1,4 +1,5 @@
 """Utilities for the model classes"""
+
 import copy
 import logging
 from typing import Callable, Optional

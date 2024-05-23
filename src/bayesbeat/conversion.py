@@ -1,4 +1,5 @@
 """Function for converting parameters"""
+
 from typing import Optional
 
 from nessai import config as nessai_config

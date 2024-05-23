@@ -140,7 +140,7 @@ class GaussianBeamModel(BaseModel):
             params = set(inspect.signature(signal_model).parameters.keys())
             self._model_parameters = params - {"x_data"}
         return self._model_parameters
-    
+
     @property
     def valid_parameters(self):
         additional = {"dphi", "domega"}
@@ -383,7 +383,7 @@ def log_likelihood(
     else:
         res = y_data - y_signal
     return norm_const + torch.sum(
-        -0.5 * ((res ** 2) / (sigma_noise**2)),
+        -0.5 * ((res**2) / (sigma_noise**2)),
         dtype=y_data.dtype,
     )
 

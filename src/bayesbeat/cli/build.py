@@ -1,4 +1,5 @@
 """Command line interface to submit jobs"""
+
 import subprocess
 
 from ..config import read_config
@@ -30,7 +31,7 @@ def build(config, submit, overwrite):
 
         if submit:
             logger.info("Submitting job")
-            subprocess.run(["sbatch",  slurm_file])
+            subprocess.run(["sbatch", slurm_file])
         else:
             logger.info(
                 f"""To submit the job, run:
