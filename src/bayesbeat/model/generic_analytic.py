@@ -91,6 +91,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                     "If specifying `n_terms` it must match the contents of "
                     "the coefficients file."
                 )
+            self.n_terms = len(self.coefficients) - 1
         else:
             if n_terms is None or beam_radius is None or include_gap is None:
                 raise ValueError(
@@ -132,7 +133,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 f"Required variables are: {self.required_variables}"
             )
 
-        if not len(self.coefficients) != (n_terms + 1):
+        if not len(self.coefficients) != (self.n_terms + 1):
             raise RuntimeError(
                 "Number of terms in expression and coefficients file are "
                 "inconsistent. (n terms + 1 == n coefficients)"
