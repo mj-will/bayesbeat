@@ -40,6 +40,11 @@ slurm = [
     "simple-slurm",
 ]
 
+dev = [
+    "pytest",
+    "numba",
+]
+
 [project.scripts]
 bayesbeat_run = "bayesbeat.cli.run:run"
 bayesbeat_build = "bayesbeat.cli.build:build"
