@@ -143,12 +143,15 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         self.constant_parameters = dict()
 
         bounds = {
-            "a_1": [5e-6, 1e-2],
-            "a_2": [5e-6, 1e-2],
-            "tau_1": [100, 1000],
-            "tau_2": [100, 2000],
-            "domega": [0.01, 0.5],
+            "a_1": [1e-10, 1e-5],
+            "a_2": [1e-10, 1e-5],
+            "a_scale": [1e-6, 1e3],
+            "tau_1": [0, 3000],
+            "tau_2": [0, 3000],
+            "domega": [-5, 5],
             "dphi": [0, 2 * np.pi],
+            "x_offset": [-1e-5, 1e-5],
+            "sigma_noise": [0, 1e2],
         }
 
         if x_offset is None:
@@ -168,6 +171,9 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
         if prior_bounds is not None:
             bounds.update(prior_bounds)
+
+        if "a_ratio" in bounds:
+            bounds.pop("a_2")
 
         for k, v in kwargs.items():
             if k in self.model_parameters:
@@ -209,6 +215,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
 
     def convert_to_model_parameters(self, x: dict) -> dict:
         x.update(self.constant_parameters)
+        if "a_ratio" in x:
+            x["a_2"] = x["a_ratio"] * x["a_1"]
         y = {k: x[k] for k in self.model_parameters if k in x}
         return y
 
