@@ -1,7 +1,7 @@
 """Analytic model derived by Bryan Barr"""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 import inspect
 from nessai.livepoint import live_points_to_dict
@@ -10,6 +10,14 @@ import dill
 from warnings import warn
 
 from .base import BaseModel, UniformPriorMixin
+from ..equations.coefficients import (
+    compute_coefficients_with_gap,
+    compute_coefficients_without_gap,
+)
+from ..equations.functions import (
+    get_included_function_filename,
+    read_function_from_sympy_file,
+)
 
 try:
     from numba import jit
@@ -21,43 +29,6 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-
-
-def convert_to_dw(expression):
-    """Convert the expression to use dw instead of w_1 - w_2"""
-    expression = expression.replace("w_1 - w_2", "dw")
-    for i in range(1, 8):
-        expression = expression.replace(f"{i}*w_1 - {i}*w_2", f"{i}*dw")
-    return expression
-
-
-def read_function_from_sympy_file(equation_filename):
-    """Read a function from a txt file using sympy.
-
-    Returns
-    -------
-    Callable :
-        The lambdified function
-    set :
-        The set of variables for the function.
-    """
-    from sympy import lambdify
-    from sympy.parsing.sympy_parser import parse_expr
-
-    with open(equation_filename, "r") as f:
-        expression = f.readline()
-
-    expression = convert_to_dw(expression)
-    logger.debug(f"Parsing expression: {expression}")
-    func = parse_expr(expression)
-    variables = sorted(func.free_symbols, key=lambda s: s.name)
-    logger.debug(f"Found the following variables: {variables}")
-    func_lambdify = lambdify(variables, func)
-    variables_set = {v.name for v in variables}
-    n_terms = max(
-        [int(v.split("_")[1]) for v in variables_set if v.startswith("C_")]
-    )
-    return func_lambdify, variables_set, n_terms
 
 
 class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
@@ -78,6 +49,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         *,
         photodiode_gap: float,
         photodiode_size: float,
+        beam_radius: Optional[float] = None,
+        include_gap: Optional[bool] = None,
         x_offset: Optional[float] = None,
         sigma_noise: Optional[float] = None,
         prior_bounds: Optional[dict] = None,
@@ -85,26 +58,71 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         rescale: bool = False,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
+        equation_name: Optional[str] = None,
         equation_filename: str = None,
         coefficients_filename: str = None,
-        rin_noise: bool = False,
+        n_terms: Optional[int] = None,
+        rin_noise: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(x_data, y_data)
 
         self.photodiode_gap = photodiode_gap
         self.photodiode_size = photodiode_size
+        self.beam_radius = beam_radius
         self.amplitude_constraint = amplitude_constraint
         self.decay_constraint = decay_constraint
         self.rin_noise = rin_noise
+        self.n_terms = n_terms
 
-        with open(coefficients_filename, "rb") as f:
-            coefficients = dill.load(f, "rb")
-        self.coefficients = {f"C_{i}": c for i, c in enumerate(coefficients)}
+        if self.rin_noise is False:
+            logger.warning("Running with `rin_noise=False`")
 
-        func, variables, n_terms = read_function_from_sympy_file(
-            equation_filename
-        )
+        if coefficients_filename is not None:
+            with open(coefficients_filename, "rb") as f:
+                coefficients = dill.load(f, "rb")
+            self.coefficients = {
+                f"C_{i}": c for i, c in enumerate(coefficients)
+            }
+            if self.n_terms is not None and (self.n_terms + 1) != len(
+                self.coefficients
+            ):
+                raise ValueError(
+                    "If specifying `n_terms` it must match the contents of "
+                    "the coefficients file."
+                )
+            self.n_terms = len(self.coefficients) - 1
+        else:
+            if n_terms is None or beam_radius is None or include_gap is None:
+                raise ValueError(
+                    "Must specify `n_terms`, `beam_radius`  and `include_gap` "
+                    "if coefficients filename is not specified."
+                )
+            if include_gap:
+                self.coefficients = compute_coefficients_with_gap(
+                    photodiode_gap=self.photodiode_gap,
+                    beam_radius=self.beam_radius,
+                    n_terms=n_terms,
+                )
+            else:
+                if photodiode_gap is not None and photodiode_gap > 0:
+                    logger.warning(
+                        "Photodiode gap > 0 but `include_gap=False`"
+                    )
+                self.coefficients = compute_coefficients_without_gap(
+                    sigma=self.beam_radius,
+                    n_terms=n_terms,
+                )
+
+        if (equation_name is not None) and (equation_filename is not None):
+            raise RuntimeError(
+                "Specify either `equation_name` or `equation_filename`"
+            )
+
+        if equation_name:
+            equation_filename = get_included_function_filename(equation_name)
+
+        func, variables, _ = read_function_from_sympy_file(equation_filename)
         self.func = jit(func, nopython=True)
 
         if variables != self.required_variables.union(self.coefficients):
@@ -113,10 +131,10 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 f"Required variables are: {self.required_variables}"
             )
 
-        if not len(coefficients) != n_terms:
+        if len(self.coefficients) != (self.n_terms + 1):
             raise RuntimeError(
                 "Number of terms in expression and coefficients file are "
-                "inconsistent."
+                "inconsistent (require n terms + 1 == n coefficients)."
             )
 
         if rescale is True:

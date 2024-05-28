@@ -20,6 +20,11 @@ dependencies = [
     "nessai>=0.8",
     "corner",
     "dill",
+    "sympy",
+    "h5py",
+    "seaborn",
+    "scipy",
+    "click",
 ]
 
 dynamic = ["version"]
@@ -33,6 +38,11 @@ condor = [
 ]
 slurm = [
     "simple-slurm",
+]
+
+dev = [
+    "pytest",
+    "numba",
 ]
 
 [project.scripts]
