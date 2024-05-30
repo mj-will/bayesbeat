@@ -51,10 +51,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         photodiode_size: float,
         beam_radius: Optional[float] = None,
         include_gap: Optional[bool] = None,
-        x_offset: Optional[float] = None,
-        sigma_noise: Optional[float] = None,
         prior_bounds: Optional[dict] = None,
-        a_scale: Optional[float] = None,
         rescale: bool = False,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
@@ -110,7 +107,7 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                         "Photodiode gap > 0 but `include_gap=False`"
                     )
                 self.coefficients = compute_coefficients_without_gap(
-                    sigma=self.beam_radius,
+                    beam_radius=self.beam_radius,
                     n_terms=n_terms,
                 )
 
@@ -153,21 +150,6 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             "x_offset": [-1e-5, 1e-5],
             "sigma_noise": [0, 1e2],
         }
-
-        if x_offset is None:
-            bounds["x_offset"] = [-1e-3, 1e-3]
-        else:
-            self.constant_parameters["x_offset"] = x_offset
-
-        if sigma_noise is None:
-            bounds["sigma_noise"] = [1e-5, 1.0]
-        else:
-            self.constant_parameters["sigma_noise"] = sigma_noise
-
-        if a_scale is None:
-            bounds["a_scale"] = [1e-5, 10]
-        else:
-            self.constant_parameters["a_scale"] = a_scale
 
         if prior_bounds is not None:
             bounds.update(prior_bounds)

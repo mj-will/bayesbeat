@@ -12,7 +12,8 @@ import click
 @click.argument("config", type=click.Path(exists=True))
 @click.option("--submit", help="Submit the DAG", is_flag=True)
 @click.option("--overwrite", help="Overwrite", is_flag=True)
-def build(config, submit, overwrite):
+@click.option("--log-level", type=str, help="Logging level.", default="INFO")
+def build(config, submit, overwrite, log_level):
     """Build and optionally submit a config (ini) file."""
     logger = configure_logger(label=None, output=None)
 
@@ -27,7 +28,9 @@ def build(config, submit, overwrite):
     if has_slurm:
         from ..submit.slurm import build_slurm_submit
 
-        slurm_file = build_slurm_submit(config, overwrite=overwrite)
+        slurm_file = build_slurm_submit(
+            config, overwrite=overwrite, log_level=log_level
+        )
 
         if submit:
             logger.info("Submitting job")
@@ -42,7 +45,7 @@ def build(config, submit, overwrite):
     elif has_condor:
         from ..submit.condor import build_dag
 
-        dag = build_dag(config)
+        dag = build_dag(config, log_level=log_level)
         if submit:
             logger.info("Submitting DAG")
             dag.submit_dag()
