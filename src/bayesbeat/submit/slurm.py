@@ -9,7 +9,9 @@ from ..config import read_config
 logger = logging.getLogger(__name__)
 
 
-def build_slurm_submit(config_file: str, overwrite: bool = False):
+def build_slurm_submit(
+    config_file: str, overwrite: bool = False, log_level: str = "INFO"
+):
     config = read_config(config_file)
 
     output = config.get("General", "output")
@@ -64,6 +66,7 @@ def build_slurm_submit(config_file: str, overwrite: bool = False):
         f"--index {Slurm.SLURM_ARRAY_TASK_ID}",
         f"--n-pool {Slurm.SLURM_CPUS_PER_TASK}",
         f"--output {os.path.join(output, 'analysis', f'index_{Slurm.SLURM_ARRAY_TASK_ID}', '')}",
+        f"--log-level {log_level}",
     )
 
     with open(submit_file, "w") as f:

@@ -11,7 +11,7 @@ from ..config import read_config
 logger = logging.getLogger(__name__)
 
 
-def build_dag(config_file: str) -> Dagman:
+def build_dag(config_file: str, log_level: str = "INFO") -> Dagman:
     """Get the DAG"""
     config = read_config(config_file)
 
@@ -92,6 +92,7 @@ def build_dag(config_file: str) -> Dagman:
             f"{complete_config_file} "
             f"--output={analysis_output} "
             f"--index={i} "
+            f"--log-level={log_level}"
         )
         dag.add_job(job)
 
