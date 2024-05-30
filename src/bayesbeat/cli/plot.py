@@ -87,7 +87,7 @@ def plot_fit(
     import matplotlib.pyplot as plt
     from nessai.livepoint import dict_to_live_points
 
-    if plot_type not in ["median", "all"]:
+    if plot_type not in ["median", "max", "all"]:
         raise ValueError(f"Invalid plot type: {plot_type}")
 
     logger = configure_logger(log_level=log_level)
@@ -135,10 +135,16 @@ def plot_fit(
             axs["fit"].plot(x_data, signal, color="lightgrey")
             res = (y_data - signal) / signal
             axs["res"].scatter(x_data, res)
-    elif plot_type == "median":
-        fit_params = dict_to_live_points(
-            {n: np.median(posterior_samples[n]) for n in model.names}
-        )
+    elif plot_type in ["median", "max"]:
+        if plot_type == "median":
+            logger.info("Plotting fit using median")
+            fit_params = dict_to_live_points(
+                {n: np.median(posterior_samples[n]) for n in model.names}
+            )
+        else:
+            logger.info("Plotting fit for maximum log-likelihood sample")
+            max_log_likelihood_index = np.argmax(posterior_samples["logL"])
+            fit_params = posterior_samples[max_log_likelihood_index]
         signal = model.signal_model(fit_params)
         axs["fit"].plot(x_data, signal, color="C1", label="Fit")
         res = (y_data - signal) / signal
