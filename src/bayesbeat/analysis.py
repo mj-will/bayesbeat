@@ -89,6 +89,9 @@ def run_nessai(
     eval_time = time_likelihood(model)
     logger.info(f"Likelihood evaluation time: {eval_time:.3f}s")
 
+    if model.cuda_likelihood:
+        logger.warning("Likelihood requires CUDA, set `n_pool=None`")
+        n_pool = None
     sampler = FlowSampler(
         model,
         output=output,

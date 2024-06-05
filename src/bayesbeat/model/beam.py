@@ -18,6 +18,7 @@ class GaussianBeamModel(BaseModel):
 
     """
 
+    cuda_likelihood = True
     _model_parameters = None
 
     def __init__(
@@ -25,98 +26,67 @@ class GaussianBeamModel(BaseModel):
         x_data,
         y_data,
         *,
-        photodiode_gap: float,
         photodiode_size: float,
         pre_fft_sample_rate: float,
         samples_per_measurement: int,
-        allow_positive_beat: bool = True,
-        allow_negative_beat: bool = False,
-        beam_radius: Optional[float] = None,
-        x_offset: Optional[float] = None,
-        sigma_noise: Optional[float] = None,
         prior_bounds: Optional[dict] = None,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
         rescale: bool = False,
-        use_ratio: bool = False,
         reduce_factor: float = 0.1,
-        rin_noise: bool = False,
+        rin_noise: bool = True,
         device: str = "cpu",
         **kwargs,
     ):
-        # define param names as list
         self.rescale = rescale
-        self.use_ratio = use_ratio
-        self.allow_positive_beat = allow_positive_beat
-        self.allow_negative_beat = allow_negative_beat
-        self.vectorised_likelihood = False
         self.rin_noise = rin_noise
-
-        self.constant_parameters = dict(
-            f1=2000.0,
-            phi_1=0.0,
-            photodiode_gap=photodiode_gap,
-            photodiode_size=photodiode_size,
-        )
-
-        if self.rescale:
-            bounds = {
-                "a_1": [0.5, 1],
-            }
-        elif self.use_ratio:
-            bounds = {"a_1": [1e-7, 5e-4], "a_ratio": [0.1, 1]}
-        else:
-            bounds = {"a_1": [1e-7, 5e-4], "a_2": [1e-7, 5e-4]}
-
-        bounds.update(
-            {
-                "tau_1": [10, 8000],
-                "tau_2": [10, 8000],
-                "dphi": [0, 2 * np.pi],
-            }
-        )
-
-        bounds["domega"] = [
-            -1.0 if self.allow_negative_beat else 0.0,
-            1.0 if self.allow_positive_beat else 0.0,
-        ]
-
-        if bounds["domega"][0] == bounds["domega"][1]:
-            raise RuntimeError("Invalid beat prior")
-
-        if beam_radius is None:
-            bounds["beam_radius"] = [1e-3, 1e-2]
-        else:
-            self.constant_parameters["beam_radius"] = beam_radius
-
-        if x_offset is None:
-            bounds["x_offset"] = [-1e-3, 1e-3]
-        else:
-            self.constant_parameters["x_offset"] = x_offset
-
-        if sigma_noise is None:
-            bounds["sigma_noise"] = [1e-5, 1.0]
-        else:
-            self.constant_parameters["sigma_noise"] = sigma_noise
-
-        if prior_bounds is not None:
-            bounds.update(prior_bounds)
-
-        for k, v in kwargs.items():
-            if k in self.valid_parameters:
-                bounds.pop(k)
-                self.constant_parameters[k] = v
-            else:
-                raise RuntimeError(f"Invalid input: {k}={v}")
-
-        self.names = list(bounds.keys())
-        self.bounds = bounds
+        self.vectorised_likelihood = False
 
         self.sample_rate = pre_fft_sample_rate
         self.samples_per_measurement = samples_per_measurement
         self.reduce_factor = reduce_factor
         self.decay_constraint = decay_constraint
         self.amplitude_constraint = amplitude_constraint
+
+        self.constant_parameters = dict(
+            f1=2000.0,
+            phi_1=0.0,
+            photodiode_size=photodiode_size,
+        )
+
+        bounds = {
+            "a_1": [1e-7, 1e-3],
+            "a_2": [1e-7, 1e-3],
+            "tau_1": [10, 8000],
+            "tau_2": [10, 8000],
+            "dphi": [0, 2 * np.pi],
+            "domega": [0, 5],
+            "beam_radius": [1e-4, 1e-2],
+            "photodiode_gap": [1e-4, 1e-2],
+            "x_offset": [0, 1e-3],
+        }
+
+        if self.rescale:
+            bounds["a_1"] = [0.1, 1.0]
+            bounds.pop("a_2")
+
+        if prior_bounds is not None:
+            bounds.update(prior_bounds)
+
+        if "a_ratio" in bounds:
+            bounds.pop("a_2")
+
+        for k, v in kwargs.items():
+            if k in self.model_parameters:
+                bounds.pop(k)
+                self.constant_parameters[k] = v
+
+        self.names = list(bounds.keys())
+        self.bounds = bounds
+
+        self.log_prior_constant = -np.log(
+            self.upper_bounds - self.lower_bounds
+        ).sum()
 
         self.device = device
         if self.device == "cpu":
@@ -197,24 +167,17 @@ class GaussianBeamModel(BaseModel):
             return (
                 np.log(self.in_bounds(x), dtype="float")
                 + np.log(self.evaluate_constraints(x), dtype="float")
-                - np.log(self.upper_bounds - self.lower_bounds).sum()
+                + self.log_prior_constant
             )
-
-    def from_unit_hypercube(self, x):
-        x_out = x.copy()
-        for n in self.names:
-            x_out[n] = (self.bounds[n][1] - self.bounds[n][0]) * x[
-                n
-            ] + self.bounds[n][0]
-        return x_out
 
     def convert_to_model_parameters(
         self, x: dict, noise: bool = False
     ) -> dict:
+        x.update(self.constant_parameters)
         if self.rescale:
             x["a_2"] = 1 - x["a_1"]
-        elif self.use_ratio:
-            x["a_2"] = x["a_ratio"].item() * x["a_1"]
+        elif "a_ratio" in x:
+            x["a_2"] = x["a_ratio"] * x["a_1"]
 
         if "f2" not in x:
             x["f2"] = x["f1"] - (x["domega"] / (2 * np.pi))
@@ -229,7 +192,6 @@ class GaussianBeamModel(BaseModel):
     def signal_model(self, x):
         """Return the signal for a given point"""
         x = live_points_to_dict(x)
-        x.update(self.constant_parameters)
         x = self.convert_to_model_parameters(x)
         with torch.inference_mode():
             return signal_model(self.x_data, **x).cpu().numpy()
@@ -237,7 +199,7 @@ class GaussianBeamModel(BaseModel):
     def signal_model_with_noise(self, x, noise_scale):
         """Return the signal for a given point"""
         x = live_points_to_dict(x)
-        x.update(self.constant_parameters)
+        sigma_noise = x.pop("sigma_noise")
         x = self.convert_to_model_parameters(x)
         x["noise_scale"] = noise_scale
         with torch.inference_mode():
@@ -245,8 +207,8 @@ class GaussianBeamModel(BaseModel):
 
     def log_likelihood(self, x):
         x = live_points_to_dict(x)
-        x.update(self.constant_parameters)
-        x_model = self.convert_to_model_parameters(x)
+        sigma_noise = x.pop("sigma_noise")
+        x = self.convert_to_model_parameters(x)
         with torch.inference_mode():
             logl = (
                 (
@@ -254,9 +216,9 @@ class GaussianBeamModel(BaseModel):
                         self.x_data,
                         self.y_data,
                         self.n_samples,
-                        sigma_noise=x["sigma_noise"],
+                        sigma_noise=sigma_noise,
                         rin_noise=self.rin_noise,
-                        **x_model,
+                        **x,
                     )
                 )
                 .cpu()

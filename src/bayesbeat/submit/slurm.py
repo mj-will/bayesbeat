@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def build_slurm_submit(
-    config_file: str, overwrite: bool = False, log_level: str = "INFO"
+    config_file: str,
+    overwrite: bool = False,
+    log_level: str = "INFO",
 ):
     config = read_config(config_file)
 
