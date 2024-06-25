@@ -123,11 +123,21 @@ def run_nessai(
 
         fit = model.signal_model(fit_params)
 
+        try:
+            sigma_amp_noise = fit_params["sigma_amp_noise"]
+        except AttributeError:
+            sigma_amp_noise = 0.0
+        try:
+            sigma_constant_noise = fit_params["sigma_constant_noise"]
+        except AttributeError:
+            sigma_constant_noise = 0.0
+
         plot_fit(
             x_data,
             y_data,
             fit,
-            rin_noise=model_config.get("rin_noise", False),
+            sigma_constant_noise=sigma_constant_noise,
+            sigma_amp_noise=sigma_amp_noise,
             filename=os.path.join(output, "fit.png"),
         )
 

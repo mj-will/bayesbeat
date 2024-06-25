@@ -35,7 +35,8 @@ def plot_fit(
     x_data: np.ndarray,
     y_data: np.ndarray,
     y_fit: np.ndarray,
-    rin_noise: bool = False,
+    sigma_amp_noise: float = 0.0,
+    sigma_constant_noise: float = 0.0,
     filename: Optional[str] = None,
 ) -> Union[Figure, None]:
     """Plot the fit and residuals"""
@@ -45,10 +46,13 @@ def plot_fit(
     axs[0].set_ylabel("Amplitude")
     axs[0].legend()
 
-    if rin_noise:
-        res = (y_data - y_fit) / y_fit
-    else:
-        res = y_data - y_fit
+    # Fallback to just data - fit
+    if sigma_amp_noise == 0 and sigma_constant_noise == 0:
+        sigma_constant_noise = 1
+
+    res = (y_data - y_fit) / np.sqrt(
+        (y_fit * sigma_amp_noise) ** 2 + sigma_constant_noise**2,
+    )
 
     axs[1].scatter(x_data, res, label="Data - fit", color="C0", s=2.0)
     axs[1].legend()
