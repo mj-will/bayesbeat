@@ -24,8 +24,15 @@ try:
 except ImportError:
     warn("Could not import numba", RuntimeWarning)
 
-    def jit(*args, **kwargs):
-        return lambda f: f
+    # Based on https://stackoverflow.com/a/73275170
+    def jit(f=None, *args, **kwargs):
+        def decorator(func):
+            return func
+
+        if callable(f):
+            return f
+        else:
+            return decorator
 
 
 logger = logging.getLogger(__name__)
