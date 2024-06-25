@@ -27,7 +27,7 @@ except ImportError:
     # Based on https://stackoverflow.com/a/73275170
     def jit(f=None, *args, **kwargs):
         def decorator(func):
-            return func 
+            return func
 
         if callable(f):
             return f
