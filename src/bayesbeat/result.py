@@ -72,12 +72,12 @@ def get_fit(
     logger.info(f"Model name: {model_name}")
     logger.info(f"Model config: {model_config}")
 
-    x_data, _, _, _ = get_data(datafile, index)
+    x_data, y_data, _, _ = get_data(datafile, index)
 
     model = get_model(
         model_name,
-        x_data=None,
-        y_data=None,
+        x_data=x_data,
+        y_data=y_data,
         model_config=model_config,
         rescale=False,
     )
@@ -85,7 +85,10 @@ def get_fit(
     if method == "median":
         logger.info("Plotting fit using median")
         fit_params = dict_to_live_points(
-            {n: np.median(posterior_samples[n]) for n in model.names}
+            {
+                n: np.median(posterior_samples[n])
+                for n in model.model_parameters
+            }
         )
     elif method == "max":
         logger.info("Plotting fit for maximum log-likelihood sample")
