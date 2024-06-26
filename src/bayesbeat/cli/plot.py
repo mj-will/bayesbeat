@@ -147,7 +147,24 @@ def plot_fit(
             fit_params = posterior_samples[max_log_likelihood_index]
         signal = model.signal_model(fit_params)
         axs["fit"].plot(x_data, signal, color="C1", label="Fit")
-        res = (y_data - signal) / signal
+
+        try:
+            sigma_amp_noise = fit_params["sigma_amp_noise"]
+        except AttributeError:
+            sigma_amp_noise = 0.0
+        try:
+            sigma_constant_noise = fit_params["sigma_constant_noise"]
+        except AttributeError:
+            sigma_constant_noise = 0.0
+        # Fallback to just data - fit
+        if sigma_amp_noise == 0 and sigma_constant_noise == 0:
+            sigma_constant_noise = 1
+
+        sigma = np.sqrt(
+            (signal * sigma_amp_noise) ** 2 + sigma_constant_noise**2
+        )
+
+        res = (y_data - signal) / sigma
         axs["res"].scatter(x_data, res, s=2, color="grey")
 
         if residual_interval is not None:
