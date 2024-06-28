@@ -150,8 +150,8 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             "domega": [-5, 5],
             "dphi": [0, 2 * np.pi],
             "x_offset": [-1e-5, 1e-5],
-            "sigma_amp_noise": [0, 1e1],
-            "sigma_amp_noise_constant": [0, 1e1],
+            "sigma_amp_noise": [0, 1],
+            "sigma_constant_noise": [0, 1],
         }
 
         if prior_bounds is not None:
@@ -212,13 +212,11 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         """Compute the log-likelihood"""
         x = live_points_to_dict(x, self.names)
         sigma_amp_noise = x.pop("sigma_amp_noise")
-        sigma_amp_noise_constant = x.pop("sigma_amp_noise_constant", 0)
+        sigma_constant_noise = x.pop("sigma_constant_noise", 0)
         x = self.convert_to_model_parameters(x)
 
         y_signal = self.model_function(**x)
-        sigma2 = (
-            sigma_amp_noise * y_signal
-        ) ** 2 + sigma_amp_noise_constant**2
+        sigma2 = (sigma_amp_noise * y_signal) ** 2 + sigma_constant_noise**2
         norm_const = np.log(2 * np.pi * sigma2)
         res = (self.y_data - y_signal) ** 2 / sigma2
         logl = -0.5 * np.sum(norm_const + res)
