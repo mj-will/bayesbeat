@@ -122,8 +122,14 @@ class TwoNoiseSourceModel(BaseModel):
     def log_likelihood(self, x: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood"""
         x = live_points_to_dict(x, self.names)
-        sigma_amp_noise = x.pop("sigma_amp_noise")
-        sigma_constant_noise = x.pop("sigma_constant_noise", 0)
+        sigma_amp_noise = x.pop(
+            "sigma_amp_noise",
+            self.constant_parameters.get("sigma_amp_noise", 0.0),
+        )
+        sigma_constant_noise = x.pop(
+            "sigma_constant_noise",
+            self.constant_parameters.get("sigma_constant_noise", 0.0),
+        )
         x = self.convert_to_model_parameters(x)
 
         y_signal = self.model_function(**x)
