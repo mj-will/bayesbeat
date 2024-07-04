@@ -3,12 +3,29 @@
 import copy
 import logging
 from typing import Callable, Optional
+from warnings import warn
 
 import numpy as np
 
 from .base import BaseModel
 
 logger = logging.getLogger(__name__)
+
+
+try:
+    from numba import jit
+except ImportError:
+    warn("Could not import numba", RuntimeWarning)
+
+    # Based on https://stackoverflow.com/a/73275170
+    def jit(f=None, *args, **kwargs):
+        def decorator(func):
+            return func
+
+        if callable(f):
+            return f
+        else:
+            return decorator
 
 
 def get_model_class(name: str) -> Callable:
