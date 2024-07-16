@@ -26,7 +26,7 @@ class BayesBeatConfigParser(configparser.ConfigParser):
                     pkg_resources.files("bayesbeat.config") / "slurm.ini"
                 )
             else:
-                raise ValueError(f"Unknown schedular: {scheduler}")
+                raise ValueError(f"Unknown scheduler: {scheduler}")
 
     def get(self, section, option, **kwargs):
         return try_literal_eval(super().get(section, option, **kwargs))
@@ -37,9 +37,9 @@ class BayesBeatConfigParser(configparser.ConfigParser):
             self.write(f)
 
 
-def read_config(config_file: str) -> BayesBeatConfigParser:
+def read_config(config_file: str, **kwargs) -> BayesBeatConfigParser:
     """Read a config file"""
-    config = BayesBeatConfigParser()
+    config = BayesBeatConfigParser(**kwargs)
     logger.info(f"Loading config from: {config_file}")
     config.read(config_file)
     return config

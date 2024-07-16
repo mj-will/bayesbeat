@@ -5,6 +5,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - numpy<2.0
   - pytorch
   - cpuonly
   - nessai

@@ -11,15 +11,17 @@ from ..config import read_config
 logger = logging.getLogger(__name__)
 
 
-def build_dag(config_file: str, log_level: str = "INFO") -> Dagman:
+def build_dag(
+    config_file: str, overwrite: bool = False, log_level: str = "INFO"
+) -> Dagman:
     """Get the DAG"""
-    config = read_config(config_file)
+    config = read_config(config_file, scheduler="HTCondor")
 
     output = config.get("General", "output")
     label = config.get("General", "label")
 
     os.makedirs(output, exist_ok=True)
-    if os.listdir(output):
+    if os.listdir(output) and not overwrite:
         raise RuntimeError("Output directory is not empty!")
 
     logger.info(f"Preparing analysis in {output}")
@@ -52,7 +54,11 @@ def build_dag(config_file: str, log_level: str = "INFO") -> Dagman:
             "n-pool and request-cpus do not match! "
             f"({n_pool} vs {request_cpus})"
         )
+    elif n_pool is None:
+        n_pool = request_cpus
     request_gpus = config.get("HTCondor", "request-gpus")
+    accounting_group = config.get("HTCondor", "accounting-group")
+    accounting_user = config.get("HTCondor", "accounting-group-user")
 
     exe = shutil.which("bayesbeat_run")
     if not exe:
@@ -76,6 +82,15 @@ def build_dag(config_file: str, log_level: str = "INFO") -> Dagman:
                 extra_lines += [
                     f"request_gpus = {rg}",
                 ]
+        if accounting_group is not None:
+            if accounting_user is None:
+                raise RuntimeError(
+                    "Must specify user if specifying accounting tag"
+                )
+            extra_lines += [
+                f"accounting_group = {accounting_group}",
+                f"accounting_group_user = {accounting_user}",
+            ]
 
         job = Job(
             name=job_name,
@@ -92,7 +107,8 @@ def build_dag(config_file: str, log_level: str = "INFO") -> Dagman:
             f"{complete_config_file} "
             f"--output={analysis_output} "
             f"--index={i} "
-            f"--log-level={log_level}"
+            f"--log-level={log_level} "
+            f"--n-pool={n_pool}"
         )
         dag.add_job(job)
 
