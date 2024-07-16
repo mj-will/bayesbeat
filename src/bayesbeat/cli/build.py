@@ -45,7 +45,7 @@ def build(config, submit, overwrite, log_level):
     elif has_condor:
         from ..submit.condor import build_dag
 
-        dag = build_dag(config, log_level=log_level)
+        dag = build_dag(config, log_level=log_level, overwrite=overwrite)
         if submit:
             logger.info("Submitting DAG")
             dag.submit_dag()
