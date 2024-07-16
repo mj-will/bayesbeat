@@ -12,9 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_dag(
-    config_file: str,
-    overwrite: bool = False,
-    log_level: str = "INFO"
+    config_file: str, overwrite: bool = False, log_level: str = "INFO"
 ) -> Dagman:
     """Get the DAG"""
     config = read_config(config_file, scheduler="HTCondor")
@@ -91,7 +89,7 @@ def build_dag(
                 )
             extra_lines += [
                 f"accounting_group = {accounting_group}",
-                f"accounting_group_user = {accounting_user}"
+                f"accounting_group_user = {accounting_user}",
             ]
 
         job = Job(
