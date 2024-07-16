@@ -5,6 +5,7 @@ import logging
 from nessai.model import Model
 from nessai.livepoint import live_points_to_dict
 import numpy as np
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class TwoNoiseSourceModel(BaseModel):
         y_data: np.ndarray,
         default_bounds: dict,
         *,
-        prior_bounds: dict | None = None,
+        prior_bounds: Optional[dict] = None,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
         **kwargs,

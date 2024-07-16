@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+from typing import Optional
 
 from .base import TwoNoiseSourceModel
 from .utils import jit
@@ -30,7 +31,7 @@ class DoubleDecayingModel(TwoNoiseSourceModel):
         x_data: np.ndarray,
         y_data: np.ndarray,
         phi_1: float = 2000.0,
-        prior_bounds: dict | None = None,
+        prior_bounds: Optional[dict] = None,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
         **kwargs,
