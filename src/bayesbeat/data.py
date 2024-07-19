@@ -31,6 +31,8 @@ def get_data(
     index: int,
     maximum_amplitude: Optional[float] = None,
     rescale_amplitude: bool = False,
+    data_key: str = "ring_amps",
+    trim_index: int = -1
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """Get a specific piece of data from a file.
 
@@ -46,6 +48,8 @@ def get_data(
     rescale_amplitude : bool, optional
         If true, the data is rescaled to the maximum amplitude is one, by
         default True.
+    data_key: str, optional
+        The key to get amplitudes from .mat files, default is 'ring_amps'
 
     Returns
     -------
@@ -78,11 +82,12 @@ def get_data(
         matdata = read_hdf5_to_dict(filename)
 
     times = matdata["ring_times"].T
-    amplitudes = matdata["ring_amps"].T
+
+    amplitudes = matdata[data_key].T
     freqs = matdata["freq"]
 
-    times = times[index]
-    amplitudes = amplitudes[index]
+    times = times[index, :trim_index]
+    amplitudes = amplitudes[index, :trim_index]
 
     keep = ~np.isnan(times)
     times = times[keep]

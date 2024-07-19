@@ -73,5 +73,7 @@ def run(config, index, n_pool, log_level, output):
         model_config=model_config,
         injection=injection,
         injection_config=injection_config,
+        data_key=config.get("Data", "data-key"),
+        trim_index=config.get("Data", "trim-index"),
         **kwargs,
     )

@@ -37,6 +37,8 @@ def run_nessai(
     plot: bool = True,
     injection: bool = False,
     injection_config: Optional[dict] = None,
+    data_key: str = "ring_amps",
+    trim_index: int = -1,
     **kwargs,
 ):
     """Run the analysis with nessai"""
@@ -63,6 +65,8 @@ def run_nessai(
             index,
             rescale_amplitude=rescale_amplitude,
             maximum_amplitude=maximum_amplitude,
+            data_key=data_key,
+            trim_index=trim_index
         )
 
     model = get_model(
