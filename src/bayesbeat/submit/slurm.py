@@ -14,7 +14,7 @@ def build_slurm_submit(
     overwrite: bool = False,
     log_level: str = "INFO",
 ):
-    config = read_config(config_file)
+    config = read_config(config_file, scheduler="Slurm")
 
     output = config.get("General", "output")
     label = config.get("General", "label")

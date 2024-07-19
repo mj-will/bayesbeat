@@ -1,15 +1,13 @@
 """Analytic model derived by Bryan Barr"""
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
-import inspect
-from nessai.livepoint import live_points_to_dict
 import numpy as np
 import dill
-from warnings import warn
 
-from .base import BaseModel, UniformPriorMixin
+from .base import TwoNoiseSourceModel
+from .utils import jit
 from ..equations.coefficients import (
     compute_coefficients_with_gap,
     compute_coefficients_without_gap,
@@ -19,26 +17,11 @@ from ..equations.functions import (
     read_function_from_sympy_file,
 )
 
-try:
-    from numba import jit
-except ImportError:
-    warn("Could not import numba", RuntimeWarning)
-
-    # Based on https://stackoverflow.com/a/73275170
-    def jit(f=None, *args, **kwargs):
-        def decorator(func):
-            return func
-
-        if callable(f):
-            return f
-        else:
-            return decorator
-
 
 logger = logging.getLogger(__name__)
 
 
-class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
+class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
     """Analytic Gaussian Beam Model."""
 
     constant_parameters: dict
@@ -59,7 +42,6 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         beam_radius: Optional[float] = None,
         include_gap: Optional[bool] = None,
         prior_bounds: Optional[dict] = None,
-        rescale: bool = False,
         decay_constraint: bool = False,
         amplitude_constraint: bool = False,
         equation_name: Optional[str] = None,
@@ -68,13 +50,10 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
         n_terms: Optional[int] = None,
         **kwargs,
     ) -> None:
-        super().__init__(x_data, y_data)
 
         self.photodiode_gap = photodiode_gap
         self.photodiode_size = photodiode_size
         self.beam_radius = beam_radius
-        self.amplitude_constraint = amplitude_constraint
-        self.decay_constraint = decay_constraint
         self.n_terms = n_terms
 
         if coefficients_filename is not None:
@@ -136,11 +115,6 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
                 "inconsistent (require n terms + 1 == n coefficients)."
             )
 
-        if rescale is True:
-            raise NotImplementedError
-
-        self.constant_parameters = dict()
-
         bounds = {
             "a_1": [1e-10, 1e-5],
             "a_2": [1e-10, 1e-5],
@@ -154,78 +128,15 @@ class GenericAnalyticGaussianBeam(UniformPriorMixin, BaseModel):
             "sigma_constant_noise": [0, 1],
         }
 
-        if prior_bounds is not None:
-            bounds.update(prior_bounds)
-
-        if "a_ratio" in bounds:
-            bounds.pop("a_2")
-
-        for k, v in kwargs.items():
-            if k in bounds:
-                bounds.pop(k)
-                self.constant_parameters[k] = v
-
-        if "sigma_amp_noise" not in bounds:
-            logger.warning("Running without amplitude dependent noise!")
-
-        self.names = list(bounds.keys())
-        self.bounds = bounds
-        self.log_prior_constant = -np.log(
-            self.upper_bounds - self.lower_bounds
-        ).sum()
-
-    @property
-    def model_parameters(self) -> list[str]:
-        if self._model_parameters is None:
-            params = set(
-                inspect.signature(self.model_function).parameters.keys()
-            )
-            self._model_parameters = params
-        return self._model_parameters
-
-    def evaluate_constraints(self, x):
-        """Evaluate any prior constraints"""
-        out = np.ones(x.size, dtype=bool)
-        if self.decay_constraint:
-            out &= x["tau_1"] > x["tau_2"]
-        if self.amplitude_constraint:
-            out &= x["a_1"] > x["a_2"]
-        return out
-
-    def log_prior(self, x):
-        """Compute the log-prior probability"""
-        with np.errstate(divide="ignore"):
-            return (
-                np.log(self.in_bounds(x), dtype="float")
-                + np.log(self.evaluate_constraints(x), dtype="float")
-                + self.log_prior_constant
-            )
-
-    def convert_to_model_parameters(self, x: dict) -> dict:
-        x.update(self.constant_parameters)
-        if "a_ratio" in x:
-            x["a_2"] = x["a_ratio"] * x["a_1"]
-        y = {k: x[k] for k in self.model_parameters if k in x}
-        return y
-
-    def log_likelihood(self, x) -> np.ndarray:
-        """Compute the log-likelihood"""
-        x = live_points_to_dict(x, self.names)
-        sigma_amp_noise = x.pop("sigma_amp_noise")
-        sigma_constant_noise = x.pop("sigma_constant_noise", 0)
-        x = self.convert_to_model_parameters(x)
-
-        y_signal = self.model_function(**x)
-        sigma2 = (sigma_amp_noise * y_signal) ** 2 + sigma_constant_noise**2
-        norm_const = np.log(2 * np.pi * sigma2)
-        res = (self.y_data - y_signal) ** 2 / sigma2
-        logl = -0.5 * np.sum(norm_const + res)
-        return logl
-
-    def signal_model(self, x: np.ndarray) -> np.ndarray:
-        x = live_points_to_dict(x, self.names)
-        x = self.convert_to_model_parameters(x)
-        return self.model_function(**x)
+        super().__init__(
+            x_data,
+            y_data,
+            bounds,
+            prior_bounds=prior_bounds,
+            amplitude_constraint=amplitude_constraint,
+            decay_constraint=decay_constraint,
+            **kwargs,
+        )
 
     def model_function(
         self,

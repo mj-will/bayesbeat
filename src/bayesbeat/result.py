@@ -85,10 +85,7 @@ def get_fit(
     if method == "median":
         logger.info("Plotting fit using median")
         fit_params = dict_to_live_points(
-            {
-                n: np.median(posterior_samples[n])
-                for n in model.model_parameters
-            }
+            {n: np.median(posterior_samples[n]) for n in model.names}
         )
     elif method == "max":
         logger.info("Plotting fit for maximum log-likelihood sample")

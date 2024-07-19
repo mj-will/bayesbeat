@@ -129,11 +129,11 @@ def run_nessai(
 
         try:
             sigma_amp_noise = fit_params["sigma_amp_noise"]
-        except AttributeError:
+        except (ValueError, AttributeError):
             sigma_amp_noise = 0.0
         try:
             sigma_constant_noise = fit_params["sigma_constant_noise"]
-        except AttributeError:
+        except (ValueError, AttributeError):
             sigma_constant_noise = 0.0
 
         plot_fit(

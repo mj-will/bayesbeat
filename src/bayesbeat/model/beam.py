@@ -34,12 +34,10 @@ class GaussianBeamModel(BaseModel):
         amplitude_constraint: bool = False,
         rescale: bool = False,
         reduce_factor: float = 0.1,
-        rin_noise: bool = True,
         device: str = "cpu",
         **kwargs,
     ):
         self.rescale = rescale
-        self.rin_noise = rin_noise
         self.vectorised_likelihood = False
 
         self.sample_rate = pre_fft_sample_rate
@@ -64,6 +62,8 @@ class GaussianBeamModel(BaseModel):
             "beam_radius": [1e-4, 1e-2],
             "photodiode_gap": [1e-4, 1e-2],
             "x_offset": [0, 1e-3],
+            "sigma_amp_noise": [0, 1],
+            "sigma_constant_noise": [0, 1],
         }
 
         if self.rescale:
@@ -113,7 +113,12 @@ class GaussianBeamModel(BaseModel):
 
     @property
     def valid_parameters(self):
-        additional = {"dphi", "domega"}
+        additional = {
+            "dphi",
+            "domega",
+            "sigma_amp_noise",
+            "sigma_constant_noise",
+        }
         return self.model_parameters.union(additional)
 
     def prep_data(
@@ -183,10 +188,7 @@ class GaussianBeamModel(BaseModel):
             x["f2"] = x["f1"] - (x["domega"] / (2 * np.pi))
         if "phi_2" not in x:
             x["phi_2"] = np.mod(x["phi_1"] - x["dphi"], 2 * np.pi)
-        parameters = self.model_parameters
-        if noise:
-            parameters += {"noise"}
-        y = {k: x[k] for k in parameters if k in x}
+        y = {k: x[k] for k in self.model_parameters if k in x}
         return y
 
     def signal_model(self, x):
@@ -198,28 +200,31 @@ class GaussianBeamModel(BaseModel):
 
     def signal_model_with_noise(self, x, noise_scale):
         """Return the signal for a given point"""
+        raise NotImplementedError()
         x = live_points_to_dict(x)
-        sigma_noise = x.pop("sigma_noise")
         x = self.convert_to_model_parameters(x)
-        x["noise_scale"] = noise_scale
         with torch.inference_mode():
             return signal_model_with_noise(self.x_data, **x).cpu().numpy()
 
     def log_likelihood(self, x):
         x = live_points_to_dict(x)
-        sigma_noise = x.pop("sigma_noise")
+        sigma_amp_noise = x.pop(
+            "sigma_amp_noise",
+            self.constant_parameters.get("sigma_amp_noise", 0.0),
+        )
+        sigma_constant_noise = x.pop(
+            "sigma_constant_noise",
+            self.constant_parameters.get("sigma_constant_noise", 0.0),
+        )
         x = self.convert_to_model_parameters(x)
         with torch.inference_mode():
             logl = (
-                (
-                    log_likelihood(
-                        self.x_data,
-                        self.y_data,
-                        self.n_samples,
-                        sigma_noise=sigma_noise,
-                        rin_noise=self.rin_noise,
-                        **x,
-                    )
+                log_likelihood(
+                    self.x_data,
+                    self.y_data,
+                    sigma_amp_noise=sigma_amp_noise,
+                    sigma_constant_noise=sigma_constant_noise,
+                    **x,
                 )
                 .cpu()
                 .numpy()
@@ -308,8 +313,6 @@ def signal_model(
 def log_likelihood(
     x_data: torch.Tensor,
     y_data: torch.Tensor,
-    n_samples: int,
-    sigma_noise: float,
     photodiode_gap: float,
     photodiode_size: float,
     a_1: float,
@@ -322,9 +325,9 @@ def log_likelihood(
     tau_2: float,
     x_offset: float,
     beam_radius: float,
-    rin_noise: bool,
+    sigma_amp_noise: float,
+    sigma_constant_noise: float,
 ) -> torch.Tensor:
-    norm_const = -0.5 * n_samples * math.log(2 * math.pi * sigma_noise**2)
     y_signal = signal_model(
         x_data,
         photodiode_gap,
@@ -340,14 +343,11 @@ def log_likelihood(
         x_offset,
         beam_radius,
     )
-    if rin_noise:
-        res = (y_data - y_signal) / y_signal
-    else:
-        res = y_data - y_signal
-    return norm_const + torch.sum(
-        -0.5 * ((res**2) / (sigma_noise**2)),
-        dtype=y_data.dtype,
-    )
+    sigma2 = (sigma_amp_noise * y_signal) ** 2 + sigma_constant_noise**2
+    norm_const = torch.log(2 * np.pi * sigma2)
+    res = (y_data - y_signal) ** 2 / sigma2
+    logl = -0.5 * torch.sum(norm_const + res, dtype=y_data.dtype)
+    return logl
 
 
 def int_from_disp_with_noise(
