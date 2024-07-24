@@ -6,6 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "bayesbeat"
 authors = [
     {name = "Michael J. Williams", email = "michaeljw1@googlemail.com"},
+    {name = "Simon C. Tait", email = "stait@caltech.edu"},
+    {name = "Joseph Bayley", email = "joseph.bayley@glasgow.ac.uk"},
+    {name = "Bryan Barr", email  = "bryan.barr@glasgow.ac.uk"},
 ]
 description = "Bayesian inference for two decaying beating signals"
 readme = "README.md"
