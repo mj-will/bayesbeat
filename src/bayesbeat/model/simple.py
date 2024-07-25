@@ -19,7 +19,7 @@ def sigmodel(x_data, a_1, a_2, tau_1, tau_2, phi_1, dphi, domega):
     phi_2 = phi_1 - dphi
     dwx = domega * x_data
     App = -Ap * np.sin(phi_1) - Bp * np.sin(dwx + phi_2)
-    Bpp = Ap * np.cos(phi_1) + Bp * np.cos(dwx * x_data + phi_2)
+    Bpp = Ap * np.cos(phi_1) + Bp * np.cos(dwx + phi_2)
     return np.sqrt(App**2 + Bpp**2)
 
 
