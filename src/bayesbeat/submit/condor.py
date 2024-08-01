@@ -32,17 +32,23 @@ def build_dag(
     os.makedirs(log_path, exist_ok=True)
     os.makedirs(os.path.join(output, "analysis"), exist_ok=True)
 
+    datafile = os.path.realpath(config.get("General", "datafile"))
+    # Use the absolute path
+    config.set("General", "datafile", datafile)
+
     indices = config.get("General", "indices")
     if indices is None or indices == "all":
         from ..data import get_n_entries
 
-        indices = list(range(get_n_entries(config.get("General", "datafile"))))
+        indices = list(range(get_n_entries(datafile)))
         logger.info(
             f"Analysing all indices in data file ({len(indices)} total)"
         )
         config.set("General", "indices", str(indices))
 
-    complete_config_file = os.path.join(output, f"{label}_complete.ini")
+    complete_config_file = os.path.realpath(
+        os.path.join(output, f"{label}_complete.ini")
+    )
     config.write_to_file(complete_config_file)
 
     n_pool = config.get("Analysis", "n-pool")
@@ -59,6 +65,7 @@ def build_dag(
     request_gpus = config.get("HTCondor", "request-gpus")
     accounting_group = config.get("HTCondor", "accounting-group")
     accounting_user = config.get("HTCondor", "accounting-group-user")
+    transfer_files = config.get("HTCondor", "transfer-files")
 
     exe = shutil.which("bayesbeat_run")
     if not exe:
@@ -67,12 +74,15 @@ def build_dag(
     for i in indices:
         tag = f"index_{i}"
         job_name = f"{label}_analysis_{tag}"
-        analysis_output = os.path.join(output, "analysis", tag)
+        analysis_output = os.path.realpath(
+            os.path.join(output, "analysis", tag)
+        )
+        os.makedirs(analysis_output, exist_ok=True)
 
         extra_lines = [
-            f"log = {log_path}{tag}.log",
-            f"output = {log_path}{tag}.out",
-            f"error = {log_path}{tag}.err",
+            f"output = " + os.path.join(log_path, f"{tag}.out"),
+            f"error = " + os.path.join(log_path, f"{tag}.err"),
+            f"log = " + os.path.join(log_path, f"{tag}.log"),
         ]
 
         if request_gpus is not None:
@@ -92,11 +102,27 @@ def build_dag(
                 f"accounting_group_user = {accounting_user}",
             ]
 
+        if transfer_files:
+            input_files = [
+                datafile,
+                complete_config_file,
+                analysis_output,
+            ]
+            extra_lines += [
+                "should_transfer_files=yes",
+                f"transfer_input_files={', '.join(input_files)}",
+                f"transfer_output_files={analysis_output}",
+                "when_to_transfer_output=ON_EXIT_OR_EVICT",
+                "stream_output=True",
+                "stream_error=True",
+                "preserve_relative_paths=True",
+            ]
+
         job = Job(
             name=job_name,
             executable=exe,
             queue=1,
-            getenv=True,
+            getenv=not transfer_files,
             submit=submit,
             request_memory=config.get("HTCondor", "request-memory"),
             request_cpus=request_cpus,
