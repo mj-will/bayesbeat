@@ -29,6 +29,7 @@ def get_n_entries(filename: str) -> int:
 def get_data(
     filename: str,
     index: int,
+    minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
     rescale_amplitude: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, float]:
@@ -40,7 +41,10 @@ def get_data(
         Filename including the complete path
     index : int
         Index in the data to analyse. Start at zero.
-    max_amp : Optional[float], optional
+    minimum_amplitude : Optional[float]
+        Truncate the data once a minimum amplitude has been reached, by
+        default no truncation is applied.
+    maximum_amplitude : Optional[float]
         Truncate the data at a maximum amplitude, by default None and the data
         is truncated.
     rescale_amplitude : bool, optional
@@ -70,7 +74,7 @@ def get_data(
         raise ValueError("Must specific a data file!")
 
     if not os.path.exists(filename):
-        raise RuntimeError("Data file does not exist!")
+        raise RuntimeError(f"Data file {filename} does not exist!")
 
     try:
         matdata = hdf5storage.loadmat(filename)
@@ -100,6 +104,12 @@ def get_data(
         times, amplitudes = times[start:], amplitudes[start:]
         times = times - times[0]
 
+    if minimum_amplitude:
+        logger.info(f"Truncating after minimum amplitude: {minimum_amplitude}")
+        end = np.argmax(amplitudes < minimum_amplitude)
+        logger.info(f"Discarding data after  {times[end]}s")
+        times, amplitudes = times[:end], amplitudes[:end]
+
     if rescale_amplitude:
         amplitudes = amplitudes / amplitudes.max()
 
@@ -111,18 +121,19 @@ def simulate_data_from_model(
     parameters: np.ndarray,
     gaussian_noise: bool = True,
     noise_scale: Optional[float] = None,
+    zero_noise: bool = False,
+    **kwargs,
 ):
-    if gaussian_noise:
+    if gaussian_noise or zero_noise:
+        if zero_noise:
+            noise_scale = 0.0
         y_signal = model.signal_model(parameters)
         y_data = y_signal + noise_scale * np.random.randn(len(y_signal))
     else:
+        logger.info(f"Simulating non-Gaussian noise with {kwargs}")
         try:
-            y_data = model.signal_model_with_noise(
-                parameters, noise_scale=noise_scale
-            )
-            y_signal = model.signal_model_with_noise(
-                parameters, noise_scale=0.0
-            )
+            y_data = model.signal_model_with_noise(parameters, **kwargs)
+            y_signal = model.signal_model(parameters)
         except NotImplementedError:
             raise RuntimeError("model only supports Gaussian noise")
     return y_data, y_signal
