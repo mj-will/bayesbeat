@@ -27,6 +27,7 @@ def run_nessai(
     index: int = None,
     output: str = None,
     rescale_amplitude: bool = False,
+    minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
     model_name: str = "DoubleDecayingModel",
     model_config: Optional[dict] = None,
@@ -53,6 +54,7 @@ def run_nessai(
             duration=injection_config.pop("duration"),
             sample_rate=injection_config.pop("sample_rate"),
             rescale_amplitude=rescale_amplitude,
+            minimum_amplitude=minimum_amplitude,
             maximum_amplitude=maximum_amplitude,
             **injection_config,
         )
@@ -62,6 +64,7 @@ def run_nessai(
             datafile,
             index,
             rescale_amplitude=rescale_amplitude,
+            minimum_amplitude=minimum_amplitude,
             maximum_amplitude=maximum_amplitude,
         )
 

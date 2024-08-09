@@ -199,6 +199,12 @@ def simulate_data(
         times, y_data = times[start:], y_data[start:]
         times = times - times[0]
 
+    if minimum_amplitude:
+        logger.info(f"Truncating after minimum amplitude: {minimum_amplitude}")
+        end = np.argmax(amplitudes < minimum_amplitude)
+        logger.info(f"Discarding data after  {times[end]}s")
+        times, amplitudes = times[:end], amplitudes[:end]
+
     if rescale_amplitude:
         y_data = y_data / y_data.max()
 
