@@ -35,27 +35,23 @@ def generate_injections(
         for k, v in config.items("Injection")
     }
 
+    noise_config = {
+        k.replace("-", "_"): try_literal_eval(v)
+        for k, v in config.items("Noise")
+    }
+
     model_name = injection_config.pop("model_name")
     ModelClass = get_model_class(model_name)
 
-    zero_noise = injection_config.pop("zero_noise", False)
-    noise_scale = injection_config.pop("noise_scale")
-    gaussian_noise = injection_config.pop("gaussian_noise")
     duration = injection_config.pop("duration")
     sample_rate = injection_config.pop("sample_rate")
-
-    if zero_noise:
-        logger.debug("Simulating zero noise data, setting sigma_noise=0.0")
-        noise_scale = 0.0
 
     times = np.linspace(0, duration, int(sample_rate * duration))
 
     logger.debug(
         f"Creating instance of {ModelClass} with config {injection_config}"
     )
-    model = ModelClass(
-        x_data=times, y_data=None, sigma_noise=noise_scale, **injection_config
-    )
+    model = ModelClass(x_data=times, y_data=None, **injection_config)
 
     times_stack = np.repeat(times[..., np.newaxis], n_injections, axis=1)
 
@@ -74,26 +70,23 @@ def generate_injections(
             "mode_name": model_name,
             "duration": duration,
             "sample_rate": sample_rate,
-            "gaussian_noise": gaussian_noise,
-            "noise_scale": noise_scale,
-            "zero_noise": zero_noise,
             **injection_config,
         },
+        "noise_config": noise_config,
     }
 
     logger.info("Generating injections")
     for i in range(n_injections):
 
         parameters = model.new_point()
-        logger.debug(
+        logger.info(
             f"Simulating injection {i} data with parameters: {parameters}"
         )
 
         y_data, y_signal = simulate_data_from_model(
             model,
             parameters,
-            gaussian_noise=gaussian_noise,
-            noise_scale=noise_scale,
+            **noise_config,
         )
         data["ring_amps"][:, i] = y_data
         data["ring_amps_inj"][:, i] = y_signal
