@@ -107,8 +107,10 @@ def get_data(
     if minimum_amplitude:
         logger.info(f"Truncating after minimum amplitude: {minimum_amplitude}")
         end = np.argmax(amplitudes < minimum_amplitude)
-        logger.info(f"Discarding data after  {times[end]}s")
+        logger.info(f"Discarding data after  {times[end]:.2f} s")
         times, amplitudes = times[:end], amplitudes[:end]
+        if signal is not None:
+            signal = signal[:end]
 
     if rescale_amplitude:
         amplitudes = amplitudes / amplitudes.max()

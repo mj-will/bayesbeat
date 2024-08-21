@@ -303,7 +303,7 @@ def signal_model(
     Diff = int_from_disp(disp, photodiode_gap, photodiode_size, beam_radius)
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
-    return a_scale * peaks_total
+    return float(a_scale) * peaks_total
 
 
 @torch.jit.script
@@ -412,6 +412,7 @@ def signal_model_with_noise(
     a_scale: float,
     rin_noise_scale: float,
     adc_noise_scale: float,
+    constant_noise_scale: float,
 ) -> torch.Tensor:
     """get the model for the peaks"""
     y_1 = decaying_sine(x_data, a_1, f1, phi_1, tau_1)
@@ -427,4 +428,5 @@ def signal_model_with_noise(
     )
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
-    return a_scale * peaks_total
+    constant_noise = constant_noise_scale * torch.randn_like(peaks_total)
+    return float(a_scale) * peaks_total + constant_noise

@@ -60,6 +60,7 @@ class TwoNoiseSourceModel(BaseModel):
         bounds = {
             "sigma_amp_noise": [0, 1],
             "sigma_constant_noise": [0, 1],
+            "mean_constant_noise": [-5, 5],
         }
         bounds.update(default_bounds)
 
@@ -131,12 +132,16 @@ class TwoNoiseSourceModel(BaseModel):
             "sigma_constant_noise",
             self.constant_parameters.get("sigma_constant_noise", 0.0),
         )
+        mean_constant_noise = x.pop(
+            "mean_constant_noise",
+            self.constant_parameters.get("mean_constant_noise", 0.0),
+        )
         x = self.convert_to_model_parameters(x)
 
         y_signal = self.model_function(**x)
         sigma2 = (sigma_amp_noise * y_signal) ** 2 + sigma_constant_noise**2
         norm_const = np.log(2 * np.pi * sigma2)
-        res = (self.y_data - y_signal) ** 2 / sigma2
+        res = (self.y_data - y_signal - mean_constant_noise) ** 2 / sigma2
         logl = -0.5 * np.sum(norm_const + res)
         return logl
 
