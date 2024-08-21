@@ -41,6 +41,7 @@ def get_fit(
     datafile: str,
     index: int,
     method: str = "median",
+    **kwargs,
 ):
     """Get a fit for a given result.
 
@@ -79,7 +80,7 @@ def get_fit(
         x_data=x_data,
         y_data=y_data,
         model_config=model_config,
-        rescale=False,
+        **kwargs,
     )
 
     if method == "median":
