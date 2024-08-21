@@ -41,7 +41,7 @@ def get_fit(
     datafile: str,
     index: int,
     method: str = "median",
-    **kwargs
+    **kwargs,
 ):
     """Get a fit for a given result.
 
