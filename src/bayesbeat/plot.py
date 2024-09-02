@@ -36,6 +36,7 @@ def plot_fit(
     y_data: np.ndarray,
     y_fit: np.ndarray,
     sigma_amp_noise: float = 0.0,
+    mean_constant_noise: float = 0.0,
     sigma_constant_noise: float = 0.0,
     filename: Optional[str] = None,
 ) -> Union[Figure, None]:
@@ -50,7 +51,7 @@ def plot_fit(
     if sigma_amp_noise == 0 and sigma_constant_noise == 0:
         sigma_constant_noise = 1
 
-    res = (y_data - y_fit) / np.sqrt(
+    res = (y_data - y_fit - mean_constant_noise) / np.sqrt(
         (y_fit * sigma_amp_noise) ** 2 + sigma_constant_noise**2,
     )
 

@@ -146,16 +146,22 @@ def plot_fit(
             max_log_likelihood_index = np.argmax(posterior_samples["logL"])
             fit_params = posterior_samples[max_log_likelihood_index]
         signal = model.signal_model(fit_params)
-        axs["fit"].plot(x_data, signal, color="C1", label="Fit")
 
         try:
             sigma_amp_noise = fit_params["sigma_amp_noise"]
-        except AttributeError:
+        except (AttributeError, ValueError):
             sigma_amp_noise = 0.0
         try:
+            mean_constant_noise = fit_params["mean_constant_noise"]
+        except (AttributeError, ValueError):
+            mean_constant_noise = 0.0
+        try:
             sigma_constant_noise = fit_params["sigma_constant_noise"]
-        except AttributeError:
+        except (AttributeError, ValueError):
             sigma_constant_noise = 0.0
+        axs["fit"].plot(
+            x_data, signal + mean_constant_noise, color="C1", label="Fit"
+        )
         # Fallback to just data - fit
         if sigma_amp_noise == 0 and sigma_constant_noise == 0:
             sigma_constant_noise = 1
@@ -164,7 +170,7 @@ def plot_fit(
             (signal * sigma_amp_noise) ** 2 + sigma_constant_noise**2
         )
 
-        res = (y_data - signal) / sigma
+        res = (y_data - signal - mean_constant_noise) / sigma
         axs["res"].scatter(x_data, res, s=2, color="grey")
 
         if residual_interval is not None:

@@ -131,6 +131,10 @@ def run_nessai(
         except (ValueError, AttributeError):
             sigma_amp_noise = 0.0
         try:
+            mean_constant_noise = fit_params["mean_constant_noise"]
+        except (ValueError, AttributeError):
+            mean_constant_noise = 0.0
+        try:
             sigma_constant_noise = fit_params["sigma_constant_noise"]
         except (ValueError, AttributeError):
             sigma_constant_noise = 0.0
@@ -139,6 +143,7 @@ def run_nessai(
             x_data,
             y_data,
             fit,
+            mean_constant_noise=mean_constant_noise,
             sigma_constant_noise=sigma_constant_noise,
             sigma_amp_noise=sigma_amp_noise,
             filename=os.path.join(output, "fit.png"),
