@@ -17,7 +17,8 @@ def build_dag(
     """Get the DAG"""
     config = read_config(config_file, scheduler="HTCondor")
 
-    output = config.get("General", "output")
+    output = os.path.realpath(config.get("General", "output"))
+
     label = config.get("General", "label")
 
     os.makedirs(output, exist_ok=True)
@@ -67,6 +68,11 @@ def build_dag(
     accounting_user = config.get("HTCondor", "accounting-group-user")
     transfer_files = config.get("HTCondor", "transfer-files")
 
+    # Jobs are submitted from the directory below the output, so
+    # all inputs are specified relative to that directory.
+    initialdir = os.path.dirname(output)
+    rel_config_file = os.path.relpath(complete_config_file, initialdir)
+
     exe = shutil.which("bayesbeat_run")
     if not exe:
         raise RuntimeError("Missing executable!")
@@ -75,9 +81,11 @@ def build_dag(
         tag = f"index_{i}"
         job_name = f"{label}_analysis_{tag}"
         analysis_output = os.path.realpath(
-            os.path.join(output, "analysis", tag)
+            os.path.join(output, "analysis", tag, "")
         )
         os.makedirs(analysis_output, exist_ok=True)
+
+        rel_analysis_output = os.path.relpath(analysis_output, initialdir)
 
         extra_lines = [
             f"output = " + os.path.join(log_path, f"{tag}.out"),
@@ -105,13 +113,13 @@ def build_dag(
         if transfer_files:
             input_files = [
                 datafile,
-                complete_config_file,
-                analysis_output,
+                rel_config_file,
+                rel_analysis_output,
             ]
             extra_lines += [
                 "should_transfer_files=yes",
-                f"transfer_input_files={', '.join(input_files)}",
-                f"transfer_output_files={analysis_output}",
+                f"transfer_input_files={','.join(input_files)}",
+                f"transfer_output_files={rel_analysis_output}",
                 "when_to_transfer_output=ON_EXIT_OR_EVICT",
                 "stream_output=True",
                 "stream_error=True",
@@ -122,16 +130,17 @@ def build_dag(
             name=job_name,
             executable=exe,
             queue=1,
-            getenv=not transfer_files,
+            getenv=False,
             submit=submit,
+            initialdir=initialdir,
             request_memory=config.get("HTCondor", "request-memory"),
             request_cpus=request_cpus,
             request_disk=config.get("HTCondor", "request-disk"),
             extra_lines=extra_lines,
         )
         job.add_arg(
-            f"{complete_config_file} "
-            f"--output={analysis_output} "
+            f"{rel_config_file} "
+            f"--output={rel_analysis_output} "
             f"--index={i} "
             f"--log-level={log_level} "
             f"--n-pool={n_pool}"
