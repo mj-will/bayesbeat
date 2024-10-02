@@ -146,6 +146,7 @@ def simulate_data(
     sample_rate: float,
     duration: float,
     sigma_noise: float,
+    minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
     rescale_amplitude: Optional[float] = None,
     gaussian_noise: bool = True,
