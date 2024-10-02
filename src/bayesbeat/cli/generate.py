@@ -48,7 +48,7 @@ def generate_injections(
 
     times = np.linspace(0, duration, int(sample_rate * duration))
 
-    logger.debug(
+    logger.info(
         f"Creating instance of {ModelClass} with config {injection_config}"
     )
     model = ModelClass(x_data=times, y_data=None, **injection_config)
@@ -62,7 +62,6 @@ def generate_injections(
         "freq": np.empty(n_injections),
         "parameters": {key: np.empty(n_injections) for key in model.names},
         "Temp": np.nan * np.ones(n_injections),
-        "ia": np.nan * np.ones(n_injections),
         "tau": np.nan * np.ones(n_injections),
         "injection_config": {
             "bayesbeat_version": bayesbeat_version,
@@ -76,6 +75,7 @@ def generate_injections(
     }
 
     logger.info("Generating injections")
+    logger.info(f"Noise config: {noise_config}")
     for i in range(n_injections):
 
         parameters = model.new_point()
