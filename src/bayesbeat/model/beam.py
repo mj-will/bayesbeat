@@ -355,7 +355,6 @@ def int_from_disp_with_noise(
     edges: float,
     omega: float,
     rin_scale: float,
-    adc_scale: float,
 ) -> torch.Tensor:
     """
     Compute the signal in both halves of the photodiode with a given offset of d
@@ -385,12 +384,8 @@ def int_from_disp_with_noise(
     ) - gaussian_cdf(gap / 2, loc=1 * d, scale=omega / 2)
     rin = rin_scale * torch.randn_like(photodiode_right)
 
-    photodiode_left = photodiode_left * (
-        1 + rin
-    ) + adc_scale * torch.randn_like(photodiode_left)
-    photodiode_right = photodiode_right * (
-        1 + rin
-    ) + adc_scale * torch.randn_like(photodiode_right)
+    photodiode_left = photodiode_left * (1 + rin)
+    photodiode_right = photodiode_right * (1 + rin)
 
     return photodiode_right - photodiode_left
 
@@ -424,8 +419,8 @@ def signal_model_with_noise(
         photodiode_size,
         beam_radius,
         rin_scale=rin_noise_scale,
-        adc_scale=adc_noise_scale,
     )
+    Diff += adc_noise_scale * torch.randn_like(Diff)
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
     constant_noise = constant_noise_scale * torch.randn_like(peaks_total)
