@@ -420,7 +420,7 @@ def signal_model_with_noise(
         beam_radius,
         rin_scale=rin_noise_scale,
     )
-    Diff += adc_noise_scale * torch.randn_like(Diff)
+    Diff = Diff + adc_noise_scale * torch.randn_like(Diff)
     Difft = torch.fft.rfft(Diff, dim=1)
     peaks_total = torch.max(torch.abs(Difft), dim=1)[0]
     constant_noise = constant_noise_scale * torch.randn_like(peaks_total)
