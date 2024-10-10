@@ -72,7 +72,7 @@ class GaussianBeamModel(BaseModel):
             self.constant_parameters.pop("a_scale")
 
         for k, v in kwargs.items():
-            if k in self.model_parameters:
+            if k in self.valid_parameters:
                 bounds.pop(k, None)
                 self.constant_parameters[k] = v
 

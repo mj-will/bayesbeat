@@ -128,6 +128,9 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
             "sigma_constant_noise": [0, 1],
         }
 
+        if "log10_a_scale" in prior_bounds:
+            bounds.pop("a_scale")
+
         super().__init__(
             x_data,
             y_data,
@@ -137,6 +140,11 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
             decay_constraint=decay_constraint,
             **kwargs,
         )
+
+    def convert_to_model_parameters(self, x: dict) -> dict:
+        if "log10_a_scale" in x:
+            x["a_scale"] = 10 ** x.pop("log10_a_scale")
+        return super().convert_to_model_parameters(x)
 
     def model_function(
         self,
