@@ -67,6 +67,9 @@ class TwoNoiseSourceModel(BaseModel):
         if prior_bounds is not None:
             bounds.update(prior_bounds)
 
+        if "log10_a_1" in bounds:
+            bounds.pop("a_1")
+
         if "a_ratio" in bounds:
             bounds.pop("a_2")
 
@@ -116,6 +119,8 @@ class TwoNoiseSourceModel(BaseModel):
 
     def convert_to_model_parameters(self, x: dict) -> dict:
         x.update(self.constant_parameters)
+        if "log10_a_1" in x:
+            x["a_1"] = 10 ** x["log10_a_1"]
         if "a_ratio" in x:
             x["a_2"] = x["a_ratio"] * x["a_1"]
         y = {k: x[k] for k in self.model_parameters if k in x}
