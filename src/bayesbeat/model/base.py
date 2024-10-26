@@ -3,7 +3,7 @@ from abc import abstractmethod
 import inspect
 import logging
 from nessai.model import Model
-from nessai.livepoint import live_points_to_dict
+from nessai.livepoint import live_points_to_dict, numpy_array_to_live_points
 import numpy as np
 from typing import Optional
 
@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 class UniformPriorMixin:
     """Mixin class that defines a uniform prior."""
+
+    log10_parameters = None
+    """Parameters that are in log10 space."""
 
     def log_prior(self, x: np.ndarray) -> np.ndarray:
         """Log probability for a uniform prior.
@@ -46,6 +49,8 @@ class UniformPriorMixin:
         numpy.ndarray
             Array of rescaled samples.
         """
+        if self.log10_parameters:
+            raise NotImplementedError
         x_out = x.copy()
         for n in self.names:
             x_out[n] = (x[n] - self.bounds[n][0]) / (
@@ -66,6 +71,8 @@ class UniformPriorMixin:
         numpy.ndarray
             Array of sample in the prior space.
         """
+        if self.log10_parameters:
+            raise NotImplementedError
         x_out = x.copy()
         for n in self.names:
             x_out[n] = (self.bounds[n][1] - self.bounds[n][0]) * x[
@@ -149,13 +156,38 @@ class TwoNoiseSourceModel(UniformPriorMixin, BaseModel):
         if "sigma_amp_noise" not in bounds:
             logger.warning("Running without amplitude dependent noise!")
 
+        self.log10_parameters = [p for p in bounds if p.startswith("log10_")]
+
         self.names = list(bounds.keys())
         self.bounds = bounds
-        self.log_prior_constant = -np.log(
-            self.upper_bounds - self.lower_bounds
-        ).sum()
+        log_prior_constant = 0.0
+        for p in self.names:
+            log_prior_constant -= np.log(self.bounds[p][1] - self.bounds[p][0])
+            if p in self.log10_parameters:
+                log_prior_constant += np.log(np.log(10))
 
+        self.log_prior_constant = log_prior_constant
         super().__init__(x_data, y_data)
+
+    def new_point(self, N=1):
+        """Generate new points in the prior space"""
+        x = np.nan * np.ones((N, len(self.names)))
+        for i, n in enumerate(self.names):
+            if n in self.log10_parameters:
+                x[:, i] = np.log10(
+                    np.random.uniform(
+                        10.0 ** self.bounds[n][0], 10.0 ** self.bounds[n][1], N
+                    )
+                )
+            else:
+                x[:, i] = np.random.uniform(
+                    self.bounds[n][0], self.bounds[n][1], N
+                )
+        x = numpy_array_to_live_points(x, self.names)
+        return x
+
+    def new_point_log_prob(self, x):
+        return self._evaluate_log_prior(x)
 
     @property
     def model_parameters(self) -> list[str]:
@@ -175,13 +207,25 @@ class TwoNoiseSourceModel(UniformPriorMixin, BaseModel):
             out &= x["a_1"] > x["a_2"]
         return out
 
+    def _evaluate_log_prior(self, x):
+        # for log10 parameters, we want the prior to be uniform in x
+        # so the log-prior is p(x) = 1 / (b - a) * 10^x * ln(10)
+        # the log is therefore ln(p(x)) = -ln(b - a) + x * ln(10) + ln(ln(10))
+        # The constant terms are include in log_prior_constant
+        # so we only include the term that depends on x
+        # We sum over the last dimensions since there should n different
+        # value of the log-prior for n samples
+        return self.log_prior_constant + np.sum(
+            [x[p] * np.log(10) for p in self.log10_parameters], axis=0
+        )
+
     def log_prior(self, x):
         """Compute the log-prior probability"""
         with np.errstate(divide="ignore"):
             return (
                 np.log(self.in_bounds(x), dtype="float")
                 + np.log(self.evaluate_constraints(x), dtype="float")
-                + self.log_prior_constant
+                + self._evaluate_log_prior(x)
             )
 
     def convert_to_model_parameters(self, x: dict) -> dict:
@@ -212,6 +256,21 @@ class TwoNoiseSourceModel(UniformPriorMixin, BaseModel):
             self.constant_parameters.get("mean_constant_noise", 0.0),
         )
         x = self.convert_to_model_parameters(x)
+
+        if x["a_1"] <= 0 or x["a_2"] <= 0:
+            logger.warning("Negative amplitudes")
+            logger.warning(f"Setting log-likelihood to -inf")
+            return -np.inf
+
+        if x["a_1"] > 1e3:
+            logger.warning(f"Large amplitude for a_1: {x['a_1']}")
+            logger.warning(f"Setting log-likelihood to -inf")
+            return -np.inf
+
+        if x["a_2"] > 1e3:
+            logger.warning(f"Large amplitude for a_2: {x['a_2']}")
+            logger.warning(f"Setting log-likelihood to -inf")
+            return -np.inf
 
         y_signal = self.model_function(**x)
         sigma2 = (sigma_amp_noise * y_signal) ** 2 + sigma_constant_noise**2
