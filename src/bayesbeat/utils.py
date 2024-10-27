@@ -63,12 +63,9 @@ def configure_logger(
         logger.addHandler(stream_handler)
 
     if any([type(h) == logging.FileHandler for h in logger.handlers]) is False:
-        if label:
-            if output:
-                if not os.path.exists(output):
-                    os.makedirs(output, exist_ok=True)
-            else:
-                output = "."
+        if label and output:
+            if not os.path.exists(output):
+                os.makedirs(output, exist_ok=True)
             log_file = os.path.join(output, f"{label}.log")
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(
