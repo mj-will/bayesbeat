@@ -47,6 +47,7 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
         equation_name: Optional[str] = None,
         equation_filename: str = None,
         coefficients_filename: str = None,
+        compile: bool = True,
         n_terms: Optional[int] = None,
         **kwargs,
     ) -> None:
@@ -101,7 +102,10 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
             equation_filename = get_included_function_filename(equation_name)
 
         func, variables, _ = read_function_from_sympy_file(equation_filename)
-        self.func = jit(func, nopython=True)
+        if compile:
+            self.func = jit(func, nopython=True)
+        else:
+            self.func = func
 
         if variables != self.required_variables.union(self.coefficients):
             raise RuntimeError(
