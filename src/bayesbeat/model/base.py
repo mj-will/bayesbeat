@@ -262,16 +262,6 @@ class TwoNoiseSourceModel(UniformPriorMixin, BaseModel):
             logger.warning(f"Setting log-likelihood to -inf")
             return -np.inf
 
-        if x["a_1"] > 1e3:
-            logger.warning(f"Large amplitude for a_1: {x['a_1']}")
-            logger.warning(f"Setting log-likelihood to -inf")
-            return -np.inf
-
-        if x["a_2"] > 1e3:
-            logger.warning(f"Large amplitude for a_2: {x['a_2']}")
-            logger.warning(f"Setting log-likelihood to -inf")
-            return -np.inf
-
         y_signal = self.model_function(**x)
         sigma2 = (sigma_amp_noise * y_signal) ** 2 + sigma_constant_noise**2
         norm_const = np.log(2 * np.pi * sigma2)
