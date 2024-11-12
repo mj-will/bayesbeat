@@ -47,6 +47,7 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
         equation_name: Optional[str] = None,
         equation_filename: str = None,
         coefficients_filename: str = None,
+        compile: bool = True,
         n_terms: Optional[int] = None,
         **kwargs,
     ) -> None:
@@ -101,7 +102,10 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
             equation_filename = get_included_function_filename(equation_name)
 
         func, variables, _ = read_function_from_sympy_file(equation_filename)
-        self.func = jit(func, nopython=True)
+        if compile:
+            self.func = jit(func, nopython=True)
+        else:
+            self.func = func
 
         if variables != self.required_variables.union(self.coefficients):
             raise RuntimeError(
@@ -128,6 +132,9 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
             "sigma_constant_noise": [0, 1],
         }
 
+        if "log10_a_scale" in prior_bounds:
+            bounds.pop("a_scale")
+
         super().__init__(
             x_data,
             y_data,
@@ -137,6 +144,11 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
             decay_constraint=decay_constraint,
             **kwargs,
         )
+
+    def convert_to_model_parameters(self, x: dict) -> dict:
+        if "log10_a_scale" in x:
+            x["a_scale"] = 10 ** x.pop("log10_a_scale")
+        return super().convert_to_model_parameters(x)
 
     def model_function(
         self,
