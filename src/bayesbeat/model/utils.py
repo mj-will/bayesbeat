@@ -1,6 +1,7 @@
 """Utilities for the model classes"""
 
 import copy
+import json
 import logging
 from typing import Callable, Optional
 from warnings import warn
@@ -45,6 +46,7 @@ def get_model(
     *,
     x_data: np.ndarray,
     y_data: np.ndarray,
+    index: Optional[int] = None,
     model_config: Optional[dict] = None,
     **kwargs,
 ) -> BaseModel:
@@ -55,6 +57,16 @@ def get_model(
     if model_config is None:
         model_config = {}
     config = copy.deepcopy(model_config)
+    if "prior_bounds" not in config:
+        config["prior_bounds"] = {}
+    updated_prior_bounds = config.pop("updated_prior_bounds", None)
+    if updated_prior_bounds is not None:
+        if isinstance(updated_prior_bounds, dict):
+            config["prior_bounds"].update(updated_prior_bounds)
+        else:
+            with open(updated_prior_bounds, "r") as f:
+                priors = json.load(f)
+                config["prior_bounds"].update(priors[str(index)])
     config.update(kwargs)
     logger.debug(f"Creating instance of {ModelClass} with config: {config}")
 

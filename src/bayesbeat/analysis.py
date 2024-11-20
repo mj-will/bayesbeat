@@ -1,6 +1,7 @@
 """Analysis functions"""
 
 import copy
+import json
 import logging
 import os
 from typing import Optional
@@ -72,6 +73,7 @@ def run_nessai(
         model_name,
         x_data=x_data,
         y_data=y_data,
+        index=index,
         model_config=model_config,
         rescale=rescale_amplitude,
     )
