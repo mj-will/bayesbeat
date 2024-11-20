@@ -61,7 +61,9 @@ def get_model(
         config["prior_bounds"] = {}
     update_prior_bounds = config.pop("update_prior_bounds", None)
     if update_prior_bounds is not None:
-        if update_prior_bounds.endswith(".json"):
+        if isinstance(
+            update_prior_bounds, str
+        ) and update_prior_bounds.endswith(".json"):
             logger.info(f"Updating prior bounds from {update_prior_bounds}")
             with open(update_prior_bounds, "r") as f:
                 priors = json.load(f)
