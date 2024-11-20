@@ -57,6 +57,7 @@ bayesbeat_generate_injections = "bayesbeat.cli.generate:generate_injections"
 bayesbeat_plot_data = "bayesbeat.cli.plot:plot_data"
 bayesbeat_plot_posterior = "bayesbeat.cli.plot:plot_posterior"
 bayesbeat_plot_fit = "bayesbeat.cli.plot:plot_fit"
+bayesbeat_estimate_priors = "bayesbeat.cli.priors:estimate_priors"
 
 [project.entry-points."nessai.reparameterisations"]
 bayesbeat_log_amplitude_reparameterisation = "bayesbeat.reparameterisations:log_amplitude_reparameterisation"
