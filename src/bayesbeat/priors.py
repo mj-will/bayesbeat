@@ -65,6 +65,8 @@ def estimate_initial_priors(
     sampling_rate: Optional[float] = None,
     parameters: list[str] = None,
 ):
+    if parameters is None:
+        raise ValueError("No parameters specified for estimating priors.")
     parameters = parameters.copy()
     priors = {}
     if "domega" in parameters:
