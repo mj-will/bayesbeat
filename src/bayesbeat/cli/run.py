@@ -65,6 +65,7 @@ def run(config, index, n_pool, log_level, output):
         rescale_amplitude=config.get("Data", "rescale-amplitude"),
         minimum_amplitude=config.get("Data", "minimum-amplitude"),
         maximum_amplitude=config.get("Data", "maximum-amplitude"),
+        t_end=config.get("Data", "t-end"),
         n_pool=n_pool,
         seed=config.get("General", "seed"),
         resume=config.get("Analysis", "resume"),

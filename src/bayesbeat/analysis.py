@@ -30,6 +30,7 @@ def run_nessai(
     rescale_amplitude: bool = False,
     minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
+    t_end: Optional[float] = None,
     model_name: str = "DoubleDecayingModel",
     model_config: Optional[dict] = None,
     resume: bool = True,
@@ -67,6 +68,7 @@ def run_nessai(
             rescale_amplitude=rescale_amplitude,
             minimum_amplitude=minimum_amplitude,
             maximum_amplitude=maximum_amplitude,
+            t_end=t_end,
         )
 
     model = get_model(
