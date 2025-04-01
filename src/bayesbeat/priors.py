@@ -64,7 +64,7 @@ def estimate_initial_priors(
     y_data: np.ndarray,
     sampling_rate: Optional[float] = None,
     parameters: list[str] = None,
-    minimum_domega_width: float = 0.1 * np.pi,
+    domega_minimum_width: float = 0.1 * np.pi,
 ):
     if parameters is None:
         raise ValueError("No parameters specified for estimating priors.")
@@ -72,7 +72,7 @@ def estimate_initial_priors(
     priors = {}
     if "domega" in parameters:
         priors["domega"] = estimate_domega_prior(
-            x_data, y_data, sampling_rate, minimum_width=minimum_domega_width
+            x_data, y_data, sampling_rate, minimum_width=domega_minimum_width
         )
         parameters.remove("domega")
     if parameters:

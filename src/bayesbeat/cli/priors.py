@@ -28,7 +28,7 @@ def estimate_priors(
     output: str,
     log_level: str,
     parameter: list[str],
-    minimum_domega_width: float,
+    domega_minimum_width: float,
 ):
     logger = configure_logger(log_level=log_level)
     logger.info(f"Estimating priors for {parameter} from {datafile}")
@@ -43,7 +43,7 @@ def estimate_priors(
             x_data,
             y_data,
             parameters=parameters,
-            minimum_domega_width=minimum_domega_width,
+            domega_minimum_width=domega_minimum_width,
         )
 
     logger.info(f"Writing priors to {output}")
