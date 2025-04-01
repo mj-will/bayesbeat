@@ -41,6 +41,7 @@ def get_fit(
     datafile: str,
     index: int,
     method: str = "median",
+    ignore_priors: bool = True,
     **kwargs,
 ):
     """Get a fit for a given result.
@@ -57,6 +58,8 @@ def get_fit(
         Index in the data file.
     method : str
         Method to choose the fit. Choose from: {'median', 'max'}.
+    ignore_priors : bool
+        Ignore priors when loading the model.
     """
     import h5py
 
@@ -70,6 +73,8 @@ def get_fit(
         k.replace("-", "_"): try_literal_eval(v)
         for k, v in config.items("Model")
     }
+    if ignore_priors:
+        model_config["update_prior_bounds"] = None
     logger.info(f"Model name: {model_name}")
     logger.info(f"Model config: {model_config}")
 
