@@ -1,5 +1,6 @@
 import click
 import json
+import numpy as np
 
 from ..data import get_data, get_n_entries
 from ..priors import estimate_initial_priors
@@ -16,8 +17,18 @@ from ..utils import configure_logger
     help="Parameter to estimate priors for.",
     multiple=True,
 )
+@click.option(
+    "--domega-minimum-width",
+    type=float,
+    help="Minimum width for domega prior.",
+    default=0.1 * np.pi,
+)
 def estimate_priors(
-    datafile: str, output: str, log_level: str, parameter: list[str]
+    datafile: str,
+    output: str,
+    log_level: str,
+    parameter: list[str],
+    minimum_domega_width: float,
 ):
     logger = configure_logger(log_level=log_level)
     logger.info(f"Estimating priors for {parameter} from {datafile}")
@@ -29,7 +40,10 @@ def estimate_priors(
     for index in indices:
         x_data, y_data, frequency, signal = get_data(datafile, index)
         priors[index] = estimate_initial_priors(
-            x_data, y_data, parameters=parameters
+            x_data,
+            y_data,
+            parameters=parameters,
+            minimum_domega_width=minimum_domega_width,
         )
 
     logger.info(f"Writing priors to {output}")

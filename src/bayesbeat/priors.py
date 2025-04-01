@@ -2,7 +2,7 @@ from scipy.signal import find_peaks
 import numpy as np
 from typing import Optional
 
-from .filter import highpass_filter, lowpass_filter
+from .filter import filter_and_rfft
 
 
 def estimate_frequency(
@@ -14,20 +14,14 @@ def estimate_frequency(
     filter_order: int = 4,
 ):
 
-    if sampling_rate is None:
-        sampling_rate = 1 / (x_data[1] - x_data[0])
-
-    if f_higher:
-        y_data = lowpass_filter(
-            y_data, f_higher, sampling_rate, order=filter_order
-        )
-    if f_lower:
-        y_data = highpass_filter(
-            y_data, f_lower, sampling_rate, order=filter_order
-        )
-
-    x_freq = np.fft.rfftfreq(len(y_data), d=1 / sampling_rate)
-    y_freq = np.fft.rfft(y_data)
+    x_freq, y_freq = filter_and_rfft(
+        x_data,
+        y_data,
+        f_lower=f_lower,
+        f_higher=f_higher,
+        sampling_rate=sampling_rate,
+        filter_order=filter_order,
+    )
 
     if f_lower:
         # Require peaks be above value at f_lower
@@ -47,7 +41,9 @@ def estimate_frequency(
     return f_peak, power_peak
 
 
-def estimate_domega_prior(x_data, y_data, sampling_rate, delta=0.1, **kwargs):
+def estimate_domega_prior(
+    x_data, y_data, sampling_rate, minimum_width=0.1 * np.pi, **kwargs
+):
     f_peak, power_peak = estimate_frequency(
         x_data, y_data, sampling_rate, **kwargs
     )
@@ -55,7 +51,11 @@ def estimate_domega_prior(x_data, y_data, sampling_rate, delta=0.1, **kwargs):
         priors_range = [0, 0.5]
     else:
         domega_peak = 2 * np.pi * f_peak
-        priors_range = [max(0, domega_peak - delta), domega_peak + delta]
+        if domega_peak < minimum_width:
+            priors_range = [0, minimum_width]
+        else:
+            delta = minimum_width / 2
+            priors_range = [max(0, domega_peak - delta), domega_peak + delta]
     return priors_range
 
 
@@ -64,13 +64,16 @@ def estimate_initial_priors(
     y_data: np.ndarray,
     sampling_rate: Optional[float] = None,
     parameters: list[str] = None,
+    minimum_domega_width: float = 0.1 * np.pi,
 ):
     if parameters is None:
         raise ValueError("No parameters specified for estimating priors.")
     parameters = parameters.copy()
     priors = {}
     if "domega" in parameters:
-        priors["domega"] = estimate_domega_prior(x_data, y_data, sampling_rate)
+        priors["domega"] = estimate_domega_prior(
+            x_data, y_data, sampling_rate, minimum_width=minimum_domega_width
+        )
         parameters.remove("domega")
     if parameters:
         raise ValueError(f"Unknown parameters: {parameters}")
