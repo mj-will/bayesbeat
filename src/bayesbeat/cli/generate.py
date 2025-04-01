@@ -28,7 +28,7 @@ def generate_injections(
     logger = configure_logger(log_level=log_level)
     config = read_config(config)
 
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
 
     injection_config = {
         k.replace("-", "_"): try_literal_eval(v)
@@ -52,6 +52,7 @@ def generate_injections(
         f"Creating instance of {ModelClass} with config {injection_config}"
     )
     model = ModelClass(x_data=times, y_data=None, **injection_config)
+    model.set_rng(rng)
 
     times_stack = np.repeat(times[..., np.newaxis], n_injections, axis=1)
 
