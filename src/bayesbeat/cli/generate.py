@@ -1,9 +1,9 @@
 import click
 import datetime
-import hdf5storage
 from nessai.utils.io import save_dict_to_hdf5
+from nessai.livepoint import dict_to_live_points
 import numpy as np
-import tqdm
+import json
 
 from ..config import read_config
 from ..data import simulate_data_from_model
@@ -18,17 +18,19 @@ from .. import __version__ as bayesbeat_version
 @click.option("--filename", type=str)
 @click.option("--log-level", type=str, help="Logging level.", default="INFO")
 @click.option("--seed", type=int, default=1234)
+@click.option("--parameters", type=click.Path(exists=True), default=None)
 def generate_injections(
     config: str,
     n_injections: int,
     filename: str,
     log_level: str,
     seed: int,
+    parameters: str = None,
 ):
     logger = configure_logger(log_level=log_level)
     config = read_config(config)
 
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
 
     injection_config = {
         k.replace("-", "_"): try_literal_eval(v)
@@ -39,6 +41,10 @@ def generate_injections(
         k.replace("-", "_"): try_literal_eval(v)
         for k, v in config.items("Noise")
     }
+
+    if parameters is not None:
+        with open(parameters, "r") as f:
+            parameters = json.load(f)
 
     model_name = injection_config.pop("model_name")
     ModelClass = get_model_class(model_name)
@@ -52,6 +58,7 @@ def generate_injections(
         f"Creating instance of {ModelClass} with config {injection_config}"
     )
     model = ModelClass(x_data=times, y_data=None, **injection_config)
+    model.set_rng(rng)
 
     times_stack = np.repeat(times[..., np.newaxis], n_injections, axis=1)
 
@@ -78,21 +85,25 @@ def generate_injections(
     logger.info(f"Noise config: {noise_config}")
     for i in range(n_injections):
 
-        parameters = model.new_point()
+        if parameters is not None:
+            # Use the provided parameters
+            signal_parameters = dict_to_live_points(parameters[str(i)])
+        else:
+            signal_parameters = model.new_point()
         logger.info(
-            f"Simulating injection {i} data with parameters: {parameters}"
+            f"Simulating injection {i} data with parameters: {signal_parameters}"
         )
 
         y_data, y_signal = simulate_data_from_model(
             model,
-            parameters,
+            signal_parameters,
             **noise_config,
         )
         data["ring_amps"][:, i] = y_data
         data["ring_amps_inj"][:, i] = y_signal
         data["freq"][i] = np.nan
         for key in model.names:
-            data["parameters"][key][i] = parameters[key]
+            data["parameters"][key][i] = signal_parameters[key]
 
     logger.info(f"Saving to: {filename}")
 

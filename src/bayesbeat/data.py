@@ -26,11 +26,24 @@ def get_n_entries(filename: str) -> int:
     return len(data["ring_times"].T)
 
 
+def get_frequency(filename: str, index: int) -> float:
+    """Get the frequency of a specific index in a data file"""
+    import hdf5storage
+
+    try:
+        data = hdf5storage.loadmat(filename)
+    except ValueError:
+        data = read_hdf5_to_dict(filename)
+    freq = data["freq"][index]
+    return float(freq)
+
+
 def get_data(
     filename: str,
     index: int,
     minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
+    t_end: Optional[float] = None,
     rescale_amplitude: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """Get a specific piece of data from a file.
@@ -46,7 +59,10 @@ def get_data(
         default no truncation is applied.
     maximum_amplitude : Optional[float]
         Truncate the data at a maximum amplitude, by default None and the data
-        is truncated.
+        is not truncated.
+    t_end : Optional[float]
+        Truncate the data at a specific time, by default None and the data is
+        not truncated.
     rescale_amplitude : bool, optional
         If true, the data is rescaled to the maximum amplitude is one, by
         default True.
@@ -107,6 +123,14 @@ def get_data(
     if minimum_amplitude:
         logger.info(f"Truncating after minimum amplitude: {minimum_amplitude}")
         end = np.argmax(amplitudes < minimum_amplitude)
+        logger.info(f"Discarding data after  {times[end]:.2f} s")
+        times, amplitudes = times[:end], amplitudes[:end]
+        if signal is not None:
+            signal = signal[:end]
+
+    if t_end:
+        logger.info(f"Truncating after {t_end} s")
+        end = np.argmax(times > t_end)
         logger.info(f"Discarding data after  {times[end]:.2f} s")
         times, amplitudes = times[:end], amplitudes[:end]
         if signal is not None:

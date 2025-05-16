@@ -31,3 +31,8 @@ def generate_all_parameters(
             dtypes=len(new) * [nessai_config.livepoints.default_float_dtype],
         )
     return samples
+
+
+def loss_from_decay_parameter(tau: float, frequency: float) -> float:
+    """Compute the loss from the decay parameter"""
+    return 1 / (tau * frequency * np.pi)

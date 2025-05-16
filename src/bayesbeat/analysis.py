@@ -1,6 +1,7 @@
 """Analysis functions"""
 
 import copy
+import json
 import logging
 import os
 from typing import Optional
@@ -29,6 +30,7 @@ def run_nessai(
     rescale_amplitude: bool = False,
     minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
+    t_end: Optional[float] = None,
     model_name: str = "DoubleDecayingModel",
     model_config: Optional[dict] = None,
     resume: bool = True,
@@ -66,12 +68,14 @@ def run_nessai(
             rescale_amplitude=rescale_amplitude,
             minimum_amplitude=minimum_amplitude,
             maximum_amplitude=maximum_amplitude,
+            t_end=t_end,
         )
 
     model = get_model(
         model_name,
         x_data=x_data,
         y_data=y_data,
+        index=index,
         model_config=model_config,
         rescale=rescale_amplitude,
     )

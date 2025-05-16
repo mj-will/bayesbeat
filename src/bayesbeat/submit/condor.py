@@ -67,11 +67,20 @@ def build_dag(
     accounting_group = config.get("HTCondor", "accounting-group")
     accounting_user = config.get("HTCondor", "accounting-group-user")
     transfer_files = config.get("HTCondor", "transfer-files")
+    additional_files = config.get("HTCondor", "additional-files")
 
     # Jobs are submitted from the directory below the output, so
     # all inputs are specified relative to that directory.
     initialdir = os.path.dirname(output)
     rel_config_file = os.path.relpath(complete_config_file, initialdir)
+
+    if additional_files:
+        additional_files = additional_files.split(",")
+        rel_additional_files = []
+        for f in additional_files:
+            rel_additional_files.append(os.path.realpath(f))
+    else:
+        rel_additional_files = []
 
     exe = shutil.which("bayesbeat_run")
     if not exe:
@@ -115,7 +124,7 @@ def build_dag(
                 datafile,
                 rel_config_file,
                 rel_analysis_output,
-            ]
+            ] + rel_additional_files
             extra_lines += [
                 "should_transfer_files=yes",
                 f"transfer_input_files={','.join(input_files)}",

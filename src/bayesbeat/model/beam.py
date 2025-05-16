@@ -186,7 +186,8 @@ class GaussianBeamModel(BaseModel):
 
     def signal_model(self, x):
         """Return the signal for a given point"""
-        x = live_points_to_dict(x)
+        if not isinstance(x, dict):
+            x = live_points_to_dict(x)
         x = self.convert_to_model_parameters(x)
         with torch.inference_mode():
             return signal_model(self.x_data, **x).cpu().numpy()

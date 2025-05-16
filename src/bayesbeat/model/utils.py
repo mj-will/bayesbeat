@@ -1,6 +1,7 @@
 """Utilities for the model classes"""
 
 import copy
+import json
 import logging
 from typing import Callable, Optional
 from warnings import warn
@@ -45,6 +46,7 @@ def get_model(
     *,
     x_data: np.ndarray,
     y_data: np.ndarray,
+    index: Optional[int] = None,
     model_config: Optional[dict] = None,
     **kwargs,
 ) -> BaseModel:
@@ -55,6 +57,32 @@ def get_model(
     if model_config is None:
         model_config = {}
     config = copy.deepcopy(model_config)
+    if "prior_bounds" not in config:
+        config["prior_bounds"] = {}
+    update_prior_bounds = config.pop("update_prior_bounds", None)
+    if update_prior_bounds is not None:
+        if isinstance(
+            update_prior_bounds, str
+        ) and update_prior_bounds.endswith(".json"):
+            logger.info(f"Updating prior bounds from {update_prior_bounds}")
+            with open(update_prior_bounds, "r") as f:
+                priors = json.load(f)
+                config["prior_bounds"].update(priors[str(index)])
+        elif isinstance(update_prior_bounds, list):
+            from ..priors import estimate_initial_priors
+
+            logger.info("Estimating updated prior bounds")
+            config["prior_bounds"].update(
+                estimate_initial_priors(
+                    x_data, y_data, parameters=update_prior_bounds
+                )
+            )
+        elif update_prior_bounds is False:
+            logger.info("Not updating prior bounds")
+            pass
+        else:
+            raise ValueError("Update prior bounds must be a list or json file")
+
     config.update(kwargs)
     logger.debug(f"Creating instance of {ModelClass} with config: {config}")
 
