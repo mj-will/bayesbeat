@@ -1,13 +1,9 @@
 name: bayes-beat
 channels:
-  - pytorch
-  - astropy
   - conda-forge
-  - defaults
 dependencies:
-  - numpy<2.0
-  - pytorch
-  - cpuonly
+  - numpy
+  - pytorch-cpu
   - nessai
   - pycondor
   - hdf5storage
