@@ -15,3 +15,6 @@ dependencies:
   - click
   - seaborn
   - sympy
+  - pip
+  - pip:
+      - bayesbeat
