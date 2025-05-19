@@ -2,56 +2,30 @@
 
 Bayesian analysis of ringdowns.
 
-**Warning:** the following instructions have only been tested on Linux and may be updated after testing on other platforms.
-
-## Downloading the code
-
-The recommended way to download the code is by cloning this repository.
-
-Alternatively, you can download the code as a Zip from [this URL](https://github.com/mj-will/bayesbeat/archive/refs/heads/main.zip).
-
 ## Installation
 
-Before installing `nessai` you'll need to download and install `conda`. See the instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html). If running on computing cluster you will not have to do this step.
+### Using pip
 
-Then open a terminal, i.e. PowerShell, Command Line or equivalent.
-
-### Creating a conda environment
-
-We start by creating an environment from the environment file, this will install all the necessary packages:
+`bayesbeat` can be installed directly using `pip`
 
 ```
-conda env create -f environment.yml
+pip install bayeseat
 ```
 
-The environment will be called `bayes-beat`.
+### Using conda
 
-**Note:** this can be very slow and on certain systems.
-
-### Activating the environment
-
-We must activate the environment to use the installed packages:
+`bayesbeat` cannot yet be installed via `conda`. We do, however, provide `environment.yaml` which
+can be used to install it:
 
 ```
-conda activate bayes-beat
+conda env install environment.yaml
 ```
 
-You should now see `(bayes-beat)` in your terminal.
+**Note:** for instructions on intall `conda` see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
+## Running analyses
 
-### Installing bayesbeat
-
-Once you have activated the environment, install `bayesbeat` by running the following command in the root directory of the repository
-
-```
-pip install .
-```
-
-All the necessary dependencies should already be installed, so this should be quite quick.
-
-## Running the analysis
-
-Before running the analysis, make sure you have activated the environment. See the section above for instructions.
+Before running an analysis, make sure you have activated the relevant environment.
 
 Here is an example of how to the run analysis for a data file called `PyTotalAnalysis.mat` located in `data/`. The index determines which of ringdowns in the data file will be analyzed.
 
@@ -101,7 +75,6 @@ rin_noise = True
 prior_bounds = {"a_ratio": [0, 1], "tau_1": [290, 310], "tau_2": [140, 160], "dphi": [0, 3.141592654], "domega": [0.18, 0.22], "a_scale": [0, 10], "sigma_noise": [0, 10.0]}
 
 [Analysis]
-n-pool = 4
 resume = True
 
 [Sampler]
