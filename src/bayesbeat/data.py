@@ -221,7 +221,7 @@ def simulate_data(
         signal_parameters,
         gaussian_noise=gaussian_noise,
         zero_noise=zero_noise,
-        **noise_parameters
+        **noise_parameters,
     )
 
     if maximum_amplitude:
