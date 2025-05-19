@@ -169,7 +169,6 @@ def simulate_data(
     model_name: str,
     sample_rate: float,
     duration: float,
-    sigma_noise: float,
     minimum_amplitude: Optional[float] = None,
     maximum_amplitude: Optional[float] = None,
     rescale_amplitude: Optional[float] = None,
@@ -193,9 +192,6 @@ def simulate_data(
     sig = inspect.signature(ModelClass)
     allowed_kwargs = sig.parameters.keys()
 
-    if zero_noise:
-        sigma_noise = 0.0
-
     parameters = copy.deepcopy(kwargs)
     model_kwargs = {}
     for k in kwargs:
@@ -204,20 +200,28 @@ def simulate_data(
     times = np.linspace(0, duration, int(sample_rate * duration))
     model = ModelClass(x_data=times, y_data=None, **model_kwargs)
 
-    if isinstance(parameters, dict):
-        parameters = dict_to_live_points(
-            parameters, non_sampling_parameters=False
-        )
+    signal_parameters = {}
+    noise_parameters = {}
+    for k, v in parameters.items():
+        if "noise" in k:
+            noise_parameters[k] = v
+        else:
+            signal_parameters[k] = v
+
+    signal_parameters = dict_to_live_points(
+        signal_parameters, non_sampling_parameters=False
+    )
 
     logger.info(
-        f"Simulating signal with {ModelClass} model and parameters {parameters}"
+        f"Simulating signal with {ModelClass} model and parameters {signal_parameters}"
     )
 
     y_data, y_signal = simulate_data_from_model(
         model,
-        parameters,
+        signal_parameters,
         gaussian_noise=gaussian_noise,
-        noise_scale=sigma_noise,
+        zero_noise=zero_noise,
+        **noise_parameters,
     )
 
     if maximum_amplitude:

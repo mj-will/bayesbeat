@@ -52,6 +52,9 @@ class GenericAnalyticGaussianBeam(TwoNoiseSourceModel):
         **kwargs,
     ) -> None:
 
+        if prior_bounds is None:
+            prior_bounds = {}
+
         self.photodiode_gap = photodiode_gap
         self.photodiode_size = photodiode_size
         self.beam_radius = beam_radius
