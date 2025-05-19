@@ -18,7 +18,7 @@ pip install bayeseat
 can be used to install it:
 
 ```
-conda env install environment.yaml
+conda env create environment.yaml
 ```
 
 **Note:** for instructions on intall `conda` see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
